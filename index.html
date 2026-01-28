@@ -434,7 +434,7 @@ async function copyTextAndNotify(text) {
   try {
     // 现代浏览器
     await navigator.clipboard.writeText(text);
-    showTopBanner(`已复制！请打开微信/QQ 添加好友：${text}`, "success");
+    showTopBanner(`已复制！请打开QQ 添加好友：${1741402571}`, "success");
   } catch (e) {
     // 兜底方案（兼容老浏览器）
     const input = document.createElement("textarea");
@@ -446,7 +446,7 @@ async function copyTextAndNotify(text) {
     document.execCommand("copy");
     document.body.removeChild(input);
 
-    showTopBanner(`已复制！请打开微信/QQ 添加好友：${text}`, "success");
+    showTopBanner(`已复制！请打开微信 添加好友：${ddyyds2024}`, "success");
   }
 }
 
