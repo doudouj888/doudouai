@@ -379,33 +379,44 @@ submitBtn?.addEventListener("click", async () => {
   }
 });
 
-// ===== 联系方式复制 =====
-const QQ_NUMBER = "123456789";     // ← 换成你的 QQ
-const WECHAT_ID = "wechat_id_xxx"; // ← 换成你的微信号
+// ===== 联系方式复制（最终稳定版）=====
+const QQ_NUMBER = "123456789";     // 改成你的QQ
+const WECHAT_ID = "wechat_id_xxx"; // 改成你的微信号
+
+function toastOrAlert(msg) {
+  // 如果你有 showToast 就用，没有就 alert
+  if (typeof showToast === "function") showToast("success", "已复制", msg);
+  else alert(msg);
+}
 
 async function copyText(text, label) {
   try {
     await navigator.clipboard.writeText(text);
-    showToast("success", "已复制", label + " 已复制到剪切板");
+    toastOrAlert(`${label} 已复制：${text}`);
   } catch (e) {
-    // 兼容老浏览器
-    const input = document.createElement("input");
+    // 兼容方案
+    const input = document.createElement("textarea");
     input.value = text;
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    showToast("success", "已复制", label + " 已复制到剪切板");
+    toastOrAlert(`${label} 已复制：${text}`);
   }
 }
 
-document.getElementById("qqBtn")?.addEventListener("click", () => {
-  copyText(QQ_NUMBER, "QQ 号");
+window.addEventListener("DOMContentLoaded", () => {
+  const qqBtn = document.getElementById("qqBtn");
+  const wechatBtn = document.getElementById("wechatBtn");
+
+  console.log("bind buttons:", !!qqBtn, !!wechatBtn); // F12可看
+
+  qqBtn?.addEventListener("click", () => copyText(QQ_NUMBER, "QQ号"));
+  wechatBtn?.addEventListener("click", () => copyText(WECHAT_ID, "微信号"));
 });
 
-document.getElementById("wechatBtn")?.addEventListener("click", () => {
-  copyText(WECHAT_ID, "微信号");
-});
 
 
 /* ================== 初始化 ================== */
