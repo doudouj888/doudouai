@@ -451,43 +451,22 @@ async function copyTextAndNotify(text) {
 }
 
 /********************
- * 绑定 QQ / 微信按钮
+ * 顶部横条提示
  ********************/
-window.addEventListener("DOMContentLoaded", () => {
-  const QQ_NUMBER = "1741402571";      // ← 换成你的 QQ
-  const WECHAT_ID = "ddyyds2024";  // ← 换成你的微信号
-
-  const qqBtn = document.getElementById("qqBtn");
-  const wechatBtn = document.getElementById("wechatBtn");
-
-  if (qqBtn) {
-    qqBtn.addEventListener("click", () => {
-      copyTextAndNotify(QQ_NUMBER);
-    });
-  }
-
-  if (wechatBtn) {
-    wechatBtn.addEventListener("click", () => {
-      copyTextAndNotify(WECHAT_ID);
-    });
-  }
-});
-
 function showTopBanner(msg, type = "success") {
   const box = document.getElementById("topBanner");
   const inner = document.getElementById("topBannerInner");
   const text = document.getElementById("topBannerMsg");
 
-  text.textContent = msg || "提示";
+  if (!box || !inner || !text) return;
 
-  // success / error 两种样式
-  if (type === "success") {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400";
-  } else {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-red-500 text-white border-red-400";
-  }
+  text.textContent = msg;
+
+  inner.className =
+    "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border " +
+    (type === "success"
+      ? "bg-emerald-500 text-white border-emerald-400"
+      : "bg-red-500 text-white border-red-400");
 
   box.classList.remove("hidden");
 
@@ -496,6 +475,50 @@ function showTopBanner(msg, type = "success") {
     box.classList.add("hidden");
   }, 2200);
 }
+
+/********************
+ * 复制到剪切板（通用）
+ ********************/
+async function copyAndNotify(value, label) {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch (e) {
+    // 兜底兼容
+    const input = document.createElement("textarea");
+    input.value = value;
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+  }
+
+  showTopBanner(`已复制！请打开 ${label} 添加好友：${value}`, "success");
+}
+
+/********************
+ * 绑定 QQ / 微信按钮（重点在这里）
+ ********************/
+window.addEventListener("DOMContentLoaded", () => {
+  const QQ_NUMBER = "1741402571";        // ← 你的 QQ 号
+  const WECHAT_ID = "ddyyds2024";    // ← 你的微信号
+
+  const qqBtn = document.getElementById("qqBtn");
+  const wechatBtn = document.getElementById("wechatBtn");
+
+  if (qqBtn) {
+    qqBtn.addEventListener("click", () => {
+      copyAndNotify(QQ_NUMBER, "QQ");
+    });
+  }
+
+  if (wechatBtn) {
+    wechatBtn.addEventListener("click", () => {
+      copyAndNotify(WECHAT_ID, "微信");
+    });
+  }
+});
 
 /* ================== 初始化 ================== */
 refresh();
