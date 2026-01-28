@@ -12,17 +12,57 @@
     body { background: linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%); }
   </style>
 </head>
+<!-- 居中弹窗 Modal（增强版） -->
+<div id="modal" class="fixed inset-0 z-[99999] hidden">
+  <!-- 遮罩 -->
+  <div id="modalBackdrop"
+       class="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-150"></div>
+
+  <!-- 弹窗主体 -->
+  <div class="relative min-h-screen flex items-center justify-center p-4">
+    <div id="modalCard"
+         class="w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-slate-100
+                opacity-0 scale-95 transition duration-150">
+      <div class="p-6">
+        <div class="flex items-start gap-3">
+          <!-- 图标 -->
+          <div id="modalIcon"
+               class="h-10 w-10 rounded-full flex items-center justify-center text-lg bg-slate-100">
+            i
+          </div>
+
+          <div class="min-w-0 flex-1">
+            <div id="modalTitle" class="text-lg font-semibold text-slate-900">提示</div>
+            <div id="modalMsg" class="mt-1 text-sm text-slate-600 leading-relaxed">...</div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button id="modalCloseBtn"
+                  class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold">
+            关闭
+          </button>
+          <button id="modalOkBtn"
+                  class="h-10 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm font-semibold">
+            确定
+          </button>
+        </div>
+
+        <div class="mt-3 text-xs text-slate-400">
+          提示：按 ESC 也可以关闭
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <body class="min-h-screen text-slate-900">
 
   <!-- 版本标记（防缓存） -->
   <div class="text-left text-xs text-red-600 px-6 pt-2">VERSION: V4</div>
 
-  <!-- JS 运行标记（右上角） -->
-  <div id="jsFlag"
-       style="position:fixed;top:10px;right:10px;z-index:99999;background:#22c55e;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px;">
-    JS 未运行
-  </div>
+
 
   <!-- 顶部栏 -->
   <header class="h-14 px-6 flex items-center justify-between">
@@ -136,100 +176,195 @@
   </main>
 
   <script>
-    // ========== 基本配置 ==========
-    const API = "https://fmu.928683877.xyz/api/redeem";
+/* ================== 配置 ================== */
+const API = "https://teawork.1741402571.workers.dev/api/friend-redeem";
 
-    // 右上角标记：证明 JS 已运行
-    const flag = document.getElementById("jsFlag");
-    if (flag) flag.textContent = "JS 运行中 ✅";
+/* ================== DOM 元素 ================== */
+const inviteCodeEl = document.getElementById("inviteCode");
+const emailEl = document.getElementById("email");
+const confirmEl = document.getElementById("confirm");
+const submitBtn = document.getElementById("submitBtn");
 
-    // 取元素
-    const btn = document.getElementById("submitBtn");
-    const inviteCode = document.getElementById("inviteCode");
-    const email = document.getElementById("email");
-    const confirmBox = document.getElementById("confirm");
-    const debug = document.getElementById("debug");
+// Modal 元素（必须存在于 HTML）
+const modalEl = document.getElementById("modal");
+const modalCardEl = document.getElementById("modalCard");
+const modalBackdropEl = document.getElementById("modalBackdrop");
+const modalIconEl = document.getElementById("modalIcon");
+const modalTitleEl = document.getElementById("modalTitle");
+const modalMsgEl = document.getElementById("modalMsg");
+const modalCloseBtnEl = document.getElementById("modalCloseBtn");
+const modalOkBtnEl = document.getElementById("modalOkBtn");
 
-    function isValidEmail(v) {
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
+/* ================== 工具 ================== */
+function isValidEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
+}
+
+/* ================== Modal（增强版） ================== */
+let modalShown = false;
+
+function showModal(type, title, msg, options = {}) {
+  // 如果 modal 结构缺失，就退化为 alert（防止你页面少了 HTML 导致“没反应”）
+  if (!modalEl || !modalCardEl || !modalBackdropEl || !modalTitleEl || !modalMsgEl) {
+    alert(`${title || "提示"}\n${msg || ""}`);
+    if (typeof options.onClose === "function") options.onClose();
+    return;
+  }
+
+  modalTitleEl.textContent = title || (type === "success" ? "成功" : "失败");
+  modalMsgEl.textContent = msg || "";
+
+  // 成功/失败样式
+  if (type === "success") {
+    if (modalIconEl) {
+      modalIconEl.textContent = "✓";
+      modalIconEl.className =
+        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-emerald-100 text-emerald-700";
     }
-
-    function refresh() {
-      const code = (inviteCode.value || "").trim();
-      const em = (email.value || "").trim();
-      const ok = code.length > 0 && isValidEmail(em) && confirmBox.checked;
-
-      btn.disabled = !ok;
-      btn.className = ok
-        ? "w-full h-12 rounded-xl font-semibold transition bg-slate-900 text-white hover:bg-slate-800"
-        : "w-full h-12 rounded-xl font-semibold transition bg-slate-200 text-slate-500 cursor-not-allowed";
-
-      debug.textContent = ok
-        ? "✅ 已满足条件，可以提交"
-        : "❌ 未满足条件：" +
-          (code.length > 0 ? "" : "【邀请码】") +
-          (isValidEmail(em) ? "" : "【邮箱】") +
-          (confirmBox.checked ? "" : "【勾选】");
+    modalTitleEl.className = "text-lg font-semibold text-emerald-700";
+    modalCardEl.className =
+      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-emerald-200 opacity-0 scale-95 transition duration-150";
+  } else if (type === "error") {
+    if (modalIconEl) {
+      modalIconEl.textContent = "!";
+      modalIconEl.className =
+        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-red-100 text-red-700";
     }
+    modalTitleEl.className = "text-lg font-semibold text-red-700";
+    modalCardEl.className =
+      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-red-200 opacity-0 scale-95 transition duration-150";
+  } else {
+    if (modalIconEl) {
+      modalIconEl.textContent = "i";
+      modalIconEl.className =
+        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-slate-100 text-slate-700";
+    }
+    modalTitleEl.className = "text-lg font-semibold text-slate-900";
+    modalCardEl.className =
+      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-slate-100 opacity-0 scale-95 transition duration-150";
+  }
 
-    // 绑定事件
-    ["input", "change", "keyup", "blur"].forEach((evt) => {
-      inviteCode.addEventListener(evt, refresh);
-      email.addEventListener(evt, refresh);
-      confirmBox.addEventListener(evt, refresh);
+  modalEl.classList.remove("hidden");
+  modalShown = true;
+
+  // 动画
+  requestAnimationFrame(() => {
+    modalBackdropEl.classList.remove("opacity-0");
+    modalBackdropEl.classList.add("opacity-100");
+
+    modalCardEl.classList.remove("opacity-0", "scale-95");
+    modalCardEl.classList.add("opacity-100", "scale-100");
+  });
+
+  // 存关闭回调（例如：成功后清空表单）
+  modalEl.__onClose = options.onClose || null;
+}
+
+function hideModal() {
+  if (!modalShown || !modalEl) return;
+
+  // 退出动画
+  if (modalBackdropEl) {
+    modalBackdropEl.classList.remove("opacity-100");
+    modalBackdropEl.classList.add("opacity-0");
+  }
+  if (modalCardEl) {
+    modalCardEl.classList.remove("opacity-100", "scale-100");
+    modalCardEl.classList.add("opacity-0", "scale-95");
+  }
+
+  setTimeout(() => {
+    modalEl.classList.add("hidden");
+    modalShown = false;
+
+    // 关闭回调
+    if (typeof modalEl.__onClose === "function") {
+      try { modalEl.__onClose(); } catch {}
+    }
+    modalEl.__onClose = null;
+  }, 170);
+}
+
+// 绑定关闭事件（元素不存在就跳过）
+modalCloseBtnEl?.addEventListener("click", hideModal);
+modalOkBtnEl?.addEventListener("click", hideModal);
+modalBackdropEl?.addEventListener("click", hideModal);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hideModal();
+});
+
+/* ================== 表单状态控制 ================== */
+function refresh() {
+  if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
+
+  const code = inviteCodeEl.value.trim();
+  const em = emailEl.value.trim();
+  const ok = code.length > 0 && isValidEmail(em) && confirmEl.checked;
+
+  submitBtn.disabled = !ok;
+  submitBtn.className = ok
+    ? "w-full h-12 rounded-xl font-semibold transition bg-slate-900 text-white hover:bg-slate-800"
+    : "w-full h-12 rounded-xl font-semibold transition bg-slate-200 text-slate-500 cursor-not-allowed";
+}
+
+// 输入变化就刷新按钮状态
+["input", "change"].forEach((evt) => {
+  inviteCodeEl?.addEventListener(evt, refresh);
+  emailEl?.addEventListener(evt, refresh);
+  confirmEl?.addEventListener(evt, refresh);
+});
+
+/* ================== 提交逻辑 ================== */
+submitBtn?.addEventListener("click", async () => {
+  if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
+  if (submitBtn.disabled) return;
+
+  // 上锁 & loading
+  const oldText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "提交中...";
+
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inviteCode: inviteCodeEl.value.trim(),
+        email: emailEl.value.trim(),
+      }),
     });
 
-    // 初次刷新
-    refresh();
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch { data = { message: text }; }
 
-    // 点击提交：调用 Worker
-    btn.addEventListener("click", async () => {
-      if (btn.disabled) return;
+    if (!res.ok) {
+      showModal("error", "兑换失败", data.message || "请求失败");
+      return;
+    }
 
-      btn.textContent = "提交中...";
-      btn.disabled = true;
-
-      try {
-        const res = await fetch(API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-           code: inviteCode.value.trim(),
-           email: email.value.trim(),
-          }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          alert(data.message || "兑换失败：请求错误");
-          return;
-        }
-
-        alert("兑换成功：" + (data.message || "OK"));
-      } catch (e) {
-        alert("网络错误：请稍后再试");
-      } finally {
-        btn.textContent = "立即兑换席位";
-        btn.disabled = false;
+    // ✅ 成功弹窗（默认：关闭后清空表单）
+    showModal("success", "兑换成功", data.message || "操作成功", {
+      onClose: () => {
+        inviteCodeEl.value = "";
+        emailEl.value = "";
+        confirmEl.checked = false;
         refresh();
-      }
+      },
     });
 
-    // 保障折叠
-    const toggle = document.getElementById("toggleGuarantee");
-    const guarantee = document.getElementById("guarantee");
-    const arrow = document.getElementById("arrow");
-    toggle.addEventListener("click", () => {
-      const isHidden = guarantee.classList.contains("hidden");
-      guarantee.classList.toggle("hidden");
-      arrow.textContent = isHidden ? "▴" : "▾";
-    });
+  } catch (e) {
+    showModal("error", "网络错误", "请稍后再试");
+  } finally {
+    submitBtn.textContent = oldText;
+    refresh(); // 用 refresh() 恢复 disabled/样式
+  }
+});
 
-    // 客服按钮
-    document.getElementById("contactBtn").addEventListener("click", () => {
-      alert("这里后续换成你的客服链接/微信二维码");
-    });
-  </script>
+/* ================== 初始化 ================== */
+refresh();
+</script>
+
 
 </body>
 </html>
