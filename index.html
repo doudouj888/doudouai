@@ -56,6 +56,23 @@
   </div>
 </div>
 
+<!-- 顶部居中横条提示（Top Banner） -->
+<div id="topBanner" class="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] hidden">
+  <div id="topBannerInner"
+       class="flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400">
+    <!-- 对勾 -->
+    <div class="h-7 w-7 rounded-full flex items-center justify-center bg-white/20">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
+        <path d="M20 6L9 17l-5-5"></path>
+      </svg>
+    </div>
+
+    <div id="topBannerMsg" class="text-sm font-semibold whitespace-nowrap">
+      已复制！
+    </div>
+  </div>
+</div>
+
 
 <body class="min-h-screen text-slate-900">
 
@@ -379,22 +396,47 @@ submitBtn?.addEventListener("click", async () => {
   }
 });
 
-// ===== 联系方式复制（最终稳定版）=====
-const QQ_NUMBER = "123456789";     // 改成你的QQ
-const WECHAT_ID = "wechat_id_xxx"; // 改成你的微信号
+/********************
+ * 顶部横条提示
+ ********************/
+function showTopBanner(msg, type = "success") {
+  const box = document.getElementById("topBanner");
+  const inner = document.getElementById("topBannerInner");
+  const text = document.getElementById("topBannerMsg");
 
-function toastOrAlert(msg) {
-  // 如果你有 showToast 就用，没有就 alert
-  if (typeof showToast === "function") showToast("success", "已复制", msg);
-  else alert(msg);
+  if (!box || !inner || !text) {
+    console.warn("TopBanner DOM 未找到");
+    return;
+  }
+
+  text.textContent = msg || "提示";
+
+  if (type === "success") {
+    inner.className =
+      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400";
+  } else {
+    inner.className =
+      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-red-500 text-white border-red-400";
+  }
+
+  box.classList.remove("hidden");
+
+  clearTimeout(window.__topBannerTimer);
+  window.__topBannerTimer = setTimeout(() => {
+    box.classList.add("hidden");
+  }, 2200);
 }
 
-async function copyText(text, label) {
+/********************
+ * 复制到剪切板（最终版）
+ ********************/
+async function copyTextAndNotify(text) {
   try {
+    // 现代浏览器
     await navigator.clipboard.writeText(text);
-    toastOrAlert(`${label} 已复制：${text}`);
+    showTopBanner(`已复制！请打开微信/QQ 添加好友：${text}`, "success");
   } catch (e) {
-    // 兼容方案
+    // 兜底方案（兼容老浏览器）
     const input = document.createElement("textarea");
     input.value = text;
     input.style.position = "fixed";
@@ -403,21 +445,57 @@ async function copyText(text, label) {
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    toastOrAlert(`${label} 已复制：${text}`);
+
+    showTopBanner(`已复制！请打开微信/QQ 添加好友：${text}`, "success");
   }
 }
 
+/********************
+ * 绑定 QQ / 微信按钮
+ ********************/
 window.addEventListener("DOMContentLoaded", () => {
+  const QQ_NUMBER = "928683877";      // ← 换成你的 QQ
+  const WECHAT_ID = "wechat_id_xxx";  // ← 换成你的微信号
+
   const qqBtn = document.getElementById("qqBtn");
   const wechatBtn = document.getElementById("wechatBtn");
 
-  console.log("bind buttons:", !!qqBtn, !!wechatBtn); // F12可看
+  if (qqBtn) {
+    qqBtn.addEventListener("click", () => {
+      copyTextAndNotify(QQ_NUMBER);
+    });
+  }
 
-  qqBtn?.addEventListener("click", () => copyText(QQ_NUMBER, "QQ号"));
-  wechatBtn?.addEventListener("click", () => copyText(WECHAT_ID, "微信号"));
+  if (wechatBtn) {
+    wechatBtn.addEventListener("click", () => {
+      copyTextAndNotify(WECHAT_ID);
+    });
+  }
 });
 
+function showTopBanner(msg, type = "success") {
+  const box = document.getElementById("topBanner");
+  const inner = document.getElementById("topBannerInner");
+  const text = document.getElementById("topBannerMsg");
 
+  text.textContent = msg || "提示";
+
+  // success / error 两种样式
+  if (type === "success") {
+    inner.className =
+      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400";
+  } else {
+    inner.className =
+      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-red-500 text-white border-red-400";
+  }
+
+  box.classList.remove("hidden");
+
+  clearTimeout(window.__topBannerTimer);
+  window.__topBannerTimer = setTimeout(() => {
+    box.classList.add("hidden");
+  }, 2200);
+}
 
 /* ================== 初始化 ================== */
 refresh();
