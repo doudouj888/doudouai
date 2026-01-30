@@ -56,25 +56,14 @@
   </div>
 </div>
 
-<!-- 顶部居中横条提示（Top Banner） -->
-<div id="topBanner" class="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] hidden">
-  <div id="topBannerInner"
-       class="flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400">
-    <!-- 对勾 -->
-    <div class="h-7 w-7 rounded-full flex items-center justify-center bg-white/20">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
-        <path d="M20 6L9 17l-5-5"></path>
-      </svg>
-    </div>
-
-    <div id="topBannerMsg" class="text-sm font-semibold whitespace-nowrap">
-      已复制！
-    </div>
-  </div>
-</div>
-
 
 <body class="min-h-screen text-slate-900">
+
+  <!-- 版本标记（防缓存） -->
+  <div class="text-left text-xs text-red-600 px-6 pt-2">VERSION: V4</div>
+
+
+
   <!-- 顶部栏 -->
   <header class="h-14 px-6 flex items-center justify-between">
     <div class="flex items-center gap-2 font-semibold">
@@ -98,7 +87,7 @@
           <h1 class="text-xl font-semibold text-center">申请入驻席位</h1>
           <p class="mt-2 text-center text-sm text-slate-500 leading-relaxed">
             官方正规渠道，独立订阅账号。<br/>
-            如未持有兑换码，请点击页面下方 <span class="text-blue-600">联系客户经理</span> 获取。
+            如未持有兑换码，请点击页面下方 <span class="text-blue-600">联系客服经理</span> 获取。
           </p>
 
           <!-- 表单 -->
@@ -151,7 +140,7 @@
                   <div class="h-8 w-8 rounded-full bg-emerald-100 grid place-items-center">🛡️</div>
                   <div class="text-left">
                     <div class="text-sm font-semibold">无忧售后保障</div>
-                    <div class="text-xs text-slate-500">30天质保，从不翻车</div>
+                    <div class="text-xs text-slate-500">30天质保，包含全额退款承诺</div>
                   </div>
                 </div>
                 <span id="arrow" class="text-slate-500">▾</span>
@@ -173,37 +162,12 @@
       <div class="fixed left-0 right-0 bottom-6 px-4 pointer-events-none">
         <div class="max-w-[440px] mx-auto">
           <div class="h-12 rounded-full bg-white/90 backdrop-blur border border-slate-200 shadow flex items-center justify-center gap-3 px-3 pointer-events-auto">
-            <div
-  class="h-9 px-3
-         flex items-center gap-2
-         text-slate-500
-         text-xs
-         select-none">
-  <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-  客户经理在线
-</div>
-
-
-            <!-- QQ -->
-<button id="qqBtn"
-  title="复制 QQ"
-  class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center">
-  <!-- QQ 图标（简洁版） -->
-  <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#12B7F5">
-    <path d="M511.9 64C282.7 64 96 250.7 96 479.9c0 135.6 68.6 255.3 173.3 327.2-2.1 9.4-13.1 59.8-2.6 79.2 0 0 9.2 13.5 27.6 0 18.4-13.5 54.7-39.6 84.5-44.9 43.6 12.2 90.3 18.8 139.7 18.8 49.5 0 96.1-6.6 139.7-18.8 29.8 5.3 66.1 31.4 84.5 44.9 18.4 13.5 27.6 0 27.6 0 10.5-19.4-0.5-69.8-2.6-79.2C859.4 735.2 928 615.5 928 479.9 928 250.7 741.3 64 511.9 64z"/>
-  </svg>
-</button>
-
-<!-- 微信 -->
-<button id="wechatBtn"
-  title="复制微信"
-  class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center">
-  <!-- 微信图标 -->
-  <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#07C160">
-    <path d="M512 64C264.6 64 64 240.5 64 458.7c0 125.2 73.6 235.7 188.7 306.2l-30.3 94.2c-3.3 10.3 7.9 19.6 17.6 14.4l112.7-61.4c50.6 14.1 104.5 21.8 159.3 21.8 247.4 0 448-176.5 448-394.7S759.4 64 512 64z"/>
-  </svg>
-</button>
-
+            <button id="contactBtn"
+              class="h-9 px-4 rounded-full bg-slate-900 text-white text-sm font-semibold flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-400"></span> 客户经理
+            </button>
+            <button class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50">🛡️</button>
+            <button class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50">✈️</button>
           </div>
         </div>
       </div>
@@ -390,134 +354,10 @@ submitBtn?.addEventListener("click", async () => {
     });
 
   } catch (e) {
-    showModal("error", "网络错误", "请稍后再试");
+    showModal("error", "网络错误", "请使用谷歌浏览器或代理环境下兑换");
   } finally {
     submitBtn.textContent = oldText;
     refresh(); // 用 refresh() 恢复 disabled/样式
-  }
-});
-
-/********************
- * 顶部横条提示
- ********************/
-function showTopBanner(msg, type = "success") {
-  const box = document.getElementById("topBanner");
-  const inner = document.getElementById("topBannerInner");
-  const text = document.getElementById("topBannerMsg");
-
-  if (!box || !inner || !text) {
-    console.warn("TopBanner DOM 未找到");
-    return;
-  }
-
-  text.textContent = msg || "提示";
-
-  if (type === "success") {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400";
-  } else {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-red-500 text-white border-red-400";
-  }
-
-  box.classList.remove("hidden");
-
-  clearTimeout(window.__topBannerTimer);
-  window.__topBannerTimer = setTimeout(() => {
-    box.classList.add("hidden");
-  }, 2200);
-}
-
-/********************
- * 复制到剪切板（最终版）
- ********************/
-async function copyTextAndNotify(text) {
-  try {
-    // 现代浏览器
-    await navigator.clipboard.writeText(text);
-    showTopBanner(`已复制！请打开QQ 添加好友：${1741402571}`, "success");
-  } catch (e) {
-    // 兜底方案（兼容老浏览器）
-    const input = document.createElement("textarea");
-    input.value = text;
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-
-    showTopBanner(`已复制！请打开微信 添加好友：${ddyyds2024}`, "success");
-  }
-}
-
-/********************
- * 顶部横条提示
- ********************/
-function showTopBanner(msg, type = "success") {
-  const box = document.getElementById("topBanner");
-  const inner = document.getElementById("topBannerInner");
-  const text = document.getElementById("topBannerMsg");
-
-  if (!box || !inner || !text) return;
-
-  text.textContent = msg;
-
-  inner.className =
-    "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border " +
-    (type === "success"
-      ? "bg-emerald-500 text-white border-emerald-400"
-      : "bg-red-500 text-white border-red-400");
-
-  box.classList.remove("hidden");
-
-  clearTimeout(window.__topBannerTimer);
-  window.__topBannerTimer = setTimeout(() => {
-    box.classList.add("hidden");
-  }, 2200);
-}
-
-/********************
- * 复制到剪切板（通用）
- ********************/
-async function copyAndNotify(value, label) {
-  try {
-    await navigator.clipboard.writeText(value);
-  } catch (e) {
-    // 兜底兼容
-    const input = document.createElement("textarea");
-    input.value = value;
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-  }
-
-  showTopBanner(`已复制！请打开 ${label} 添加好友：${value}`, "success");
-}
-
-/********************
- * 绑定 QQ / 微信按钮（重点在这里）
- ********************/
-window.addEventListener("DOMContentLoaded", () => {
-  const QQ_NUMBER = "1741402571";        // ← 你的 QQ 号
-  const WECHAT_ID = "ddyyds2024";    // ← 你的微信号
-
-  const qqBtn = document.getElementById("qqBtn");
-  const wechatBtn = document.getElementById("wechatBtn");
-
-  if (qqBtn) {
-    qqBtn.addEventListener("click", () => {
-      copyAndNotify(QQ_NUMBER, "QQ");
-    });
-  }
-
-  if (wechatBtn) {
-    wechatBtn.addEventListener("click", () => {
-      copyAndNotify(WECHAT_ID, "微信");
-    });
   }
 });
 
