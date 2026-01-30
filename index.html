@@ -213,7 +213,7 @@
 
   <script>
 /* ================== 配置 ================== */
-const API = "https://teawork.1741402571.workers.dev/api/friend-redeem";
+const API = "/api/friend-redeem";
 
 /* ================== DOM 元素 ================== */
 const inviteCodeEl = document.getElementById("inviteCode");
@@ -390,7 +390,7 @@ submitBtn?.addEventListener("click", async () => {
     });
 
   } catch (e) {
-    showModal("error", "网络错误", "请使用谷歌浏览器或代理环境下兑换");
+    showModal("error", "网络错误", "请稍后再试");
   } finally {
     submitBtn.textContent = oldText;
     refresh(); // 用 refresh() 恢复 disabled/样式
@@ -528,4 +528,3 @@ refresh();
 
 </body>
 </html>
-
