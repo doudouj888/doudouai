@@ -2,569 +2,836 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>申请入驻席位</title>
-
-  <!-- Tailwind CDN：无需安装 -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>申请入驻席位 | Cyber Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
   <style>
-    body { background: linear-gradient(180deg, #f8fafc 0%, #eef6ff 100%); }
+    :root {
+      --bg-0: #081a38;
+      --bg-1: #103464;
+      --bg-2: #1e5488;
+      --bg-3: #2f6d95;
+      --glass: rgba(255, 255, 255, 0.16);
+      --glass-strong: rgba(255, 255, 255, 0.22);
+      --glass-soft: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.3);
+      --glass-border-soft: rgba(255, 255, 255, 0.2);
+      --shadow-xl: 0 26px 56px rgba(6, 16, 42, 0.34);
+      --shadow-lg: 0 16px 36px rgba(6, 16, 42, 0.28);
+      --text-main: #f5f9ff;
+      --text-soft: rgba(228, 238, 255, 0.88);
+      --text-dim: rgba(205, 222, 246, 0.84);
+      --accent: #a8d8ff;
+      --accent-strong: #6fb8ff;
+      --danger: #ff7ea9;
+      --ok: #58e4b3;
+      --font-ui: "Noto Sans SC", "Nunito", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-cute: "ZCOOL KuaiLe", "Nunito", "Noto Sans SC", cursive;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      position: relative;
+      overflow-x: hidden;
+      color: var(--text-main);
+      background:
+        radial-gradient(1200px 740px at -14% -2%, rgba(255, 255, 255, 0.26), transparent 60%),
+        radial-gradient(1100px 640px at 110% 12%, rgba(201, 230, 255, 0.35), transparent 62%),
+        radial-gradient(920px 680px at 50% 110%, rgba(183, 173, 255, 0.24), transparent 66%),
+        linear-gradient(160deg, var(--bg-0) 0%, var(--bg-1) 34%, var(--bg-2) 68%, var(--bg-3) 100%);
+      font-family: var(--font-ui);
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255, 255, 255, 0.16), transparent 44%),
+        radial-gradient(900px 380px at 20% 104%, rgba(255, 255, 255, 0.12), transparent 70%);
+      opacity: 0.72;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.1), transparent 54%);
+    }
+    @keyframes floatPulse { 0%,100% { transform: translateY(0); opacity: 0.56; } 50% { transform: translateY(-12px); opacity: 0.9; } }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes sheen { 0%,62% { transform: translateX(-118%); } 100% { transform: translateX(132%); } }
+    @keyframes btnPulse {
+      0%,100% { box-shadow: 0 12px 24px rgba(39, 85, 156, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+      50% { box-shadow: 0 18px 34px rgba(93, 146, 221, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+    }
+    .orb {
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      border-radius: 999px;
+      filter: blur(20px);
+      pointer-events: none;
+      animation: floatPulse 9.5s ease-in-out infinite;
+      opacity: 0.58;
+    }
+    .orb-cyan {
+      top: -150px;
+      left: -110px;
+      background: radial-gradient(circle, rgba(194, 232, 255, 0.88), rgba(194, 232, 255, 0));
+    }
+    .orb-pink {
+      right: -170px;
+      top: 20%;
+      background: radial-gradient(circle, rgba(236, 188, 255, 0.6), rgba(236, 188, 255, 0));
+      animation-delay: 1.6s;
+    }
+    .app-shell { position: relative; padding: 22px 16px 120px; }
+    .header {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border-soft);
+      background: rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: var(--shadow-lg);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.14));
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      font-family: var(--font-cute);
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      color: #f8fcff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 18px rgba(12, 36, 82, 0.28);
+    }
+    .brand-title { font-family: var(--font-cute); letter-spacing: 0.3px; font-size: 20px; color: #f2f8ff; }
+    .brand-sub { font-size: 12px; color: var(--text-soft); letter-spacing: 0.4px; margin-top: 1px; text-transform: none; }
+    .stat { font-size: 14px; color: var(--text-soft); text-align: right; }
+    .panel-wrap { display: flex; justify-content: center; margin-top: 34px; }
+    .panel {
+      width: min(460px, 100%);
+      background: linear-gradient(150deg, rgba(19, 59, 112, 0.74), rgba(41, 97, 164, 0.66));
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.36);
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+      overflow: hidden;
+      animation: cardIn 0.45s ease-out both;
+      position: relative;
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+    }
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.14) 0%, transparent 32%, rgba(255, 255, 255, 0.08) 66%, transparent 100%);
+      transform: translateX(-100%);
+      animation: sheen 8s ease-in-out infinite;
+    }
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      pointer-events: none;
+    }
+    .panel-line {
+      height: 5px;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.78), rgba(166, 214, 255, 0.85), rgba(193, 182, 255, 0.8));
+      box-shadow: 0 8px 18px rgba(104, 161, 236, 0.26);
+    }
+    .panel-inner { padding: 34px 30px 26px; }
+    .panel h1 {
+      margin: 0;
+      text-align: center;
+      font-family: var(--font-cute);
+      font-size: 31px;
+      letter-spacing: 0.4px;
+      color: #f5fbff;
+      text-shadow: 0 6px 16px rgba(6, 21, 54, 0.36);
+    }
+    .intro { margin: 14px 0 0; text-align: center; color: rgba(244, 249, 255, 0.94); font-size: 18px; line-height: 1.45; }
+    .intro .link-hint {
+      color: #f8fdff;
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: rgba(255, 255, 255, 0.68);
+      text-underline-offset: 3px;
+    }
+    .form-area { margin-top: 28px; display: grid; gap: 14px; }
+    .field-label { display: block; margin-bottom: 7px; font-size: 17px; color: #f7fbff; font-weight: 600; letter-spacing: 0; }
+    .input-wrap {
+      height: 52px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      background: linear-gradient(140deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 14px;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      backdrop-filter: blur(6px) saturate(115%);
+      -webkit-backdrop-filter: blur(6px) saturate(115%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+    .input-wrap:focus-within {
+      border-color: rgba(255, 255, 255, 0.62);
+      background: linear-gradient(140deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.23));
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 12px 24px rgba(53, 97, 168, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+    .input-icon { font-size: 16px; color: var(--accent); }
+    .input-wrap input { width: 100%; background: transparent; border: 0; outline: none; color: #ffffff; font-size: 18px; font-family: var(--font-ui); letter-spacing: 0; }
+    .input-wrap input::placeholder { color: rgba(231, 240, 255, 0.8); }
+    .input-wrap input:-webkit-autofill,
+    .input-wrap input:-webkit-autofill:hover,
+    .input-wrap input:-webkit-autofill:focus,
+    .input-wrap input:-webkit-autofill:active {
+      -webkit-text-fill-color: #ffffff;
+      caret-color: #ffffff;
+      border-radius: 10px;
+      -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.1) inset;
+      box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.1) inset;
+      transition: background-color 9999s ease-in-out 0s;
+    }
+    .input-wrap input:-moz-autofill {
+      color: #ffffff;
+      caret-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.1) inset;
+    }
+    .confirm-row { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; color: rgba(241, 248, 255, 0.95); line-height: 1.35; user-select: none; margin-top: 2px; }
+    .confirm-row input { margin-top: 2px; width: 17px; height: 17px; accent-color: var(--accent-strong); }
+    .submit-btn {
+      width: 100%;
+      height: 50px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.18));
+      color: rgba(230, 240, 255, 0.92);
+      font-family: var(--font-cute);
+      letter-spacing: 0.3px;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: not-allowed;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36), 0 10px 20px rgba(8, 26, 62, 0.2);
+    }
+    .submit-btn.is-enabled {
+      color: #f9fdff;
+      cursor: pointer;
+      border-color: rgba(255, 255, 255, 0.55);
+      background: linear-gradient(100deg, rgba(93, 167, 255, 0.74), rgba(197, 156, 255, 0.55));
+      animation: btnPulse 2.5s ease-in-out infinite;
+    }
+    .submit-btn.is-enabled:hover { transform: translateY(-1px); }
+    .debug { min-height: 20px; font-size: 14px; margin-top: -2px; line-height: 1.35; }
+    .debug-muted { color: var(--text-soft); }
+    .debug-error { color: #ffd1df; }
+    .debug-success { color: #d8ffe9; }
+    .debug-warn { color: #ffecb8; }
+    .legal { margin: 3px 0 0; font-size: 13px; color: var(--text-soft); text-align: center; opacity: 0.95; }
+    .guarantee {
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 14px;
+      background: linear-gradient(140deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.16));
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+    .guarantee-toggle { width: 100%; border: 0; background: transparent; color: inherit; padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+    .guarantee-main { display: flex; align-items: center; gap: 10px; }
+    .shield {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.16));
+      color: #f4fff8;
+      font-size: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 8px 14px rgba(28, 63, 110, 0.24);
+    }
+    .guarantee-title { font-size: 17px; color: #f2f9ff; font-weight: 700; }
+    .guarantee-sub { font-size: 14px; color: var(--text-soft); margin-top: 1px; }
+    .guarantee-arrow { color: #d8e6fa; font-size: 13px; }
+    .guarantee-content { padding: 0 14px 14px; color: var(--text-soft); font-size: 15px; line-height: 1.45; }
+    .guarantee-content ul { margin: 0; padding-left: 16px; display: grid; gap: 6px; }
+    .hidden { display: none !important; }
+    .contact-dock { position: fixed; left: 0; right: 0; bottom: 22px; padding: 0 16px; pointer-events: none; z-index: 20; }
+    .contact-dock-inner {
+      width: min(460px, 100%);
+      margin: 0 auto;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      background: rgba(255, 255, 255, 0.24);
+      backdrop-filter: blur(10px) saturate(120%);
+      -webkit-backdrop-filter: blur(10px) saturate(120%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 10px;
+      pointer-events: auto;
+      box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+    .online-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: #f0f7ff; padding: 0 8px; white-space: nowrap; }
+    .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--ok); box-shadow: 0 0 10px rgba(88, 228, 179, 0.72); }
+    .contact-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      background: rgba(255, 255, 255, 0.16);
+      color: #dbf7ff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    }
+    .contact-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.22);
+      box-shadow: 0 10px 18px rgba(36, 75, 136, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+    .contact-btn svg { width: 16px; height: 16px; }
+    .modal { position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 19, 47, 0.34);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      opacity: 0;
+      transition: opacity 0.16s ease;
+    }
+    .modal-card {
+      position: relative;
+      width: min(430px, 100%);
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      background: linear-gradient(145deg, rgba(42, 95, 160, 0.72), rgba(67, 128, 197, 0.64));
+      box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      opacity: 0;
+      transform: scale(0.95);
+      transition: opacity 0.16s ease, transform 0.16s ease, border-color 0.2s ease;
+      backdrop-filter: blur(12px) saturate(120%);
+      -webkit-backdrop-filter: blur(12px) saturate(120%);
+    }
+    .modal-content { padding: 22px; }
+    .modal-row { display: flex; gap: 12px; align-items: flex-start; }
+    .modal-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 19px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.24);
+      color: #f6fdff;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      flex: 0 0 auto;
+    }
+    .modal-title { font-size: 26px; margin: 0; color: #f0f8ff; font-family: var(--font-cute); letter-spacing: 0.3px; }
+    .modal-msg { margin: 8px 0 0; color: var(--text-soft); font-size: 20px; line-height: 1.45; }
+    .modal-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-btn {
+      height: 39px;
+      min-width: 74px;
+      border-radius: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.16);
+      color: #edf7ff;
+      font-family: var(--font-ui);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    .modal-btn.primary {
+      background: linear-gradient(95deg, rgba(92, 167, 255, 0.76), rgba(196, 157, 255, 0.6));
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .modal-tip { margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+    .modal.show .modal-backdrop { opacity: 1; }
+    .modal.show .modal-card { opacity: 1; transform: scale(1); }
+    .modal[data-type="success"] .modal-card { border-color: rgba(88, 228, 179, 0.48); }
+    .modal[data-type="success"] .modal-icon { color: #d8ffec; border-color: rgba(88, 228, 179, 0.45); background: rgba(88, 228, 179, 0.24); }
+    .modal[data-type="success"] .modal-title { color: #dbffef; }
+    .modal[data-type="error"] .modal-card { border-color: rgba(255, 126, 169, 0.5); }
+    .modal[data-type="error"] .modal-icon { color: #ffe1ec; border-color: rgba(255, 126, 169, 0.45); background: rgba(255, 126, 169, 0.26); }
+    .modal[data-type="error"] .modal-title { color: #ffe5ee; }
+    .top-banner { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 99999; }
+    .top-banner-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 14px;
+      border: 1px solid rgba(88, 228, 179, 0.46);
+      color: #edfff7;
+      background: rgba(88, 228, 179, 0.3);
+      box-shadow: var(--shadow-lg);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .top-banner[data-type="error"] .top-banner-inner {
+      border-color: rgba(255, 126, 169, 0.5);
+      color: #ffe7ef;
+      background: rgba(255, 126, 169, 0.22);
+    }
+    .top-banner-icon { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.3); font-size: 12px; }
+    @media (max-width: 640px) {
+      .header { padding: 9px 12px; }
+      .brand-title { font-size: 18px; }
+      .brand-sub { font-size: 11px; }
+      .stat { display: none; }
+      .panel { border-radius: 20px; }
+      .panel-inner { padding: 28px 18px 22px; }
+      .panel h1 { font-size: 26px; }
+      .intro { font-size: 17px; }
+      .field-label { font-size: 16px; }
+      .input-wrap input { font-size: 17px; }
+      .modal-title { font-size: 22px; }
+      .modal-msg { font-size: 18px; }
+    }
   </style>
 </head>
-<!-- 居中弹窗 Modal（增强版） -->
-<div id="modal" class="fixed inset-0 z-[99999] hidden">
-  <!-- 遮罩 -->
-  <div id="modalBackdrop"
-       class="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-150"></div>
+<body>
+  <div class="orb orb-cyan"></div>
+  <div class="orb orb-pink"></div>
 
-  <!-- 弹窗主体 -->
-  <div class="relative min-h-screen flex items-center justify-center p-4">
-    <div id="modalCard"
-         class="w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-slate-100
-                opacity-0 scale-95 transition duration-150">
-      <div class="p-6">
-        <div class="flex items-start gap-3">
-          <!-- 图标 -->
-          <div id="modalIcon"
-               class="h-10 w-10 rounded-full flex items-center justify-center text-lg bg-slate-100">
-            i
-          </div>
-
-          <div class="min-w-0 flex-1">
-            <div id="modalTitle" class="text-lg font-semibold text-slate-900">提示</div>
-            <div id="modalMsg" class="mt-1 text-sm text-slate-600 leading-relaxed">...</div>
+  <div id="modal" class="modal hidden" data-type="info">
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div id="modalCard" class="modal-card">
+      <div class="modal-content">
+        <div class="modal-row">
+          <div id="modalIcon" class="modal-icon">i</div>
+          <div>
+            <h3 id="modalTitle" class="modal-title">提示</h3>
+            <p id="modalMsg" class="modal-msg">...</p>
           </div>
         </div>
-
-        <div class="mt-6 flex justify-end gap-3">
-          <button id="modalCloseBtn"
-                  class="h-10 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold">
-            关闭
-          </button>
-          <button id="modalOkBtn"
-                  class="h-10 px-4 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm font-semibold">
-            确定
-          </button>
+        <div class="modal-actions">
+          <button id="modalCloseBtn" class="modal-btn">关闭</button>
+          <button id="modalOkBtn" class="modal-btn primary">确定</button>
         </div>
-
-        <div class="mt-3 text-xs text-slate-400">
-          提示：按 ESC 也可以关闭
-        </div>
+        <div class="modal-tip">提示：按 ESC 也可以关闭</div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- 顶部居中横条提示（Top Banner） -->
-<div id="topBanner" class="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] hidden">
-  <div id="topBannerInner"
-       class="flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400">
-    <!-- 对勾 -->
-    <div class="h-7 w-7 rounded-full flex items-center justify-center bg-white/20">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3">
-        <path d="M20 6L9 17l-5-5"></path>
-      </svg>
-    </div>
-
-    <div id="topBannerMsg" class="text-sm font-semibold whitespace-nowrap">
-      已复制！
+  <div id="topBanner" class="top-banner hidden" data-type="success">
+    <div id="topBannerInner" class="top-banner-inner">
+      <span class="top-banner-icon">✓</span>
+      <span id="topBannerMsg">已复制！</span>
     </div>
   </div>
-</div>
 
-
-<body class="min-h-screen text-slate-900">
-  <!-- 顶部栏 -->
-  <header class="h-14 px-6 flex items-center justify-between">
-    <div class="flex items-center gap-2 font-semibold">
-      <div class="h-8 w-8 rounded-lg bg-slate-900 text-white grid place-items-center text-sm">DD</div>
-      <span>ChatGPT Business</span>
-    </div>
-    <div class="text-xs text-slate-500 hidden sm:block">
-      累计已服务 11,800+ 团队与个人开发者
-    </div>
-  </header>
-
-  <main class="px-4 pb-28">
-    <div class="max-w-[440px] mx-auto mt-10">
-      <div class="rounded-2xl bg-white shadow-[0_8px_30px_rgba(2,6,23,0.08)] border border-slate-100 overflow-hidden">
-        <!-- 顶部蓝线 -->
-        <div class="h-1 bg-slate-200">
-          <div class="h-full w-2/3 bg-blue-500"></div>
+  <div class="app-shell">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark">DD</div>
+        <div>
+          <div class="brand-title">ChatGPT Business</div>
+          <div class="brand-sub">Cyber Access Gateway</div>
         </div>
+      </div>
+      <div class="stat">累计服务 11,800+ 团队与个人开发者</div>
+    </header>
 
-        <div class="p-8">
-          <h1 class="text-xl font-semibold text-center">申请入驻席位</h1>
-          <p class="mt-2 text-center text-sm text-slate-500 leading-relaxed">
-            官方正规渠道，独立订阅账号。<br/>
-            如未持有兑换码，请点击页面下方 <span class="text-blue-600">联系客户经理</span> 获取。
+    <main class="panel-wrap">
+      <section class="panel">
+        <div class="panel-line"></div>
+        <div class="panel-inner">
+          <h1>申请入驻席位</h1>
+          <p class="intro">
+            官方正规渠道，独立订阅账号。<br />
+            如未持有兑换码，请点击页面下方 <span class="link-hint">联系客户经理</span> 获取。
           </p>
 
-          <!-- 表单 -->
-          <div class="mt-8 space-y-4">
+          <div class="form-area">
             <div>
-              <div class="text-sm font-semibold text-slate-700 mb-2">内部兑换码</div>
-              <div class="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 flex items-center gap-3">
-                <span class="text-slate-400">🔒</span>
-                <input id="inviteCode"
-                       placeholder="INVITE-CODE"
-                       class="w-full bg-transparent outline-none text-sm"
-                       autocomplete="off" />
+              <label class="field-label" for="inviteCode">内部兑换码</label>
+              <div class="input-wrap">
+                <span class="input-icon">◈</span>
+                <input id="inviteCode" placeholder="INVITE-CODE" autocomplete="off" />
               </div>
             </div>
 
             <div>
-              <div class="text-sm font-semibold text-slate-700 mb-2">接收邮箱</div>
-              <div class="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 flex items-center gap-3">
-                <span class="text-slate-400">✉️</span>
-                <input id="email"
-                       placeholder="必须填写 GPT 登录邮箱"
-                       class="w-full bg-transparent outline-none text-sm"
-                       inputmode="email"
-                       autocomplete="email" />
+              <label class="field-label" for="email">接收邮箱</label>
+              <div class="input-wrap">
+                <span class="input-icon">✦</span>
+                <input id="email" placeholder="必须填写 GPT 登录邮箱" inputmode="email" autocomplete="email" />
               </div>
             </div>
 
-            <label class="flex items-start gap-3 text-xs text-slate-600 select-none">
-              <input id="confirm" type="checkbox" class="mt-0.5 h-4 w-4 rounded border-slate-300"/>
+            <label class="confirm-row">
+              <input id="confirm" type="checkbox" />
               <span>我已确认邮箱填写正确，若填写错误可能导致名额作废且无法找回。</span>
             </label>
 
-            <!-- 按钮：不写 disabled，完全交给 JS 控制 -->
-            <button id="submitBtn"
-              class="w-full h-12 rounded-xl font-semibold transition bg-slate-200 text-slate-500 cursor-not-allowed">
-              立即兑换席位
-            </button>
+            <button id="submitBtn" class="submit-btn">立即兑换席位</button>
 
-            <!-- debug：按钮下面红字 -->
-            <div id="debug" class="text-xs text-red-500 mt-2"></div>
+            <div id="debug" class="debug debug-muted"></div>
 
-            <p class="text-[11px] text-center text-slate-500">
-              提交即代表你已阅读并同意本页的服务说明及售后条款。
-            </p>
+            <p class="legal">提交即代表你已阅读并同意本页的服务说明及售后条款。</p>
 
-            <!-- 保障折叠 -->
-            <div class="rounded-xl border border-slate-100 bg-slate-50">
-              <button id="toggleGuarantee" class="w-full px-4 py-3 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <div class="h-8 w-8 rounded-full bg-emerald-100 grid place-items-center">🛡️</div>
-                  <div class="text-left">
-                    <div class="text-sm font-semibold">无忧售后保障</div>
-                    <div class="text-xs text-slate-500">兑换后5分钟左右刷新</div>
+            <div class="guarantee">
+              <button id="toggleGuarantee" class="guarantee-toggle">
+                <div class="guarantee-main">
+                  <div class="shield">🛡</div>
+                  <div>
+                    <div class="guarantee-title">无忧售后保障</div>
+                    <div class="guarantee-sub">兑换后 5 分钟左右刷新</div>
                   </div>
                 </div>
-                <span id="arrow" class="text-slate-500">▾</span>
+                <span id="arrow" class="guarantee-arrow">▾</span>
               </button>
-
-              <div id="guarantee" class="hidden px-4 pb-4 text-xs text-slate-600 leading-relaxed">
-                <ul class="space-y-2 pl-1">
-                  <li>✅ 兑换失败/不可用：按规则处理退款或补发</li>
-                  <li>✅ 席位异常：协助排查绑定邮箱、权限和订阅状态</li>
-                  <li>✅ 响应时效：工作时段优先处理（示例文案）</li>
+              <div id="guarantee" class="guarantee-content hidden">
+                <ul>
+                  <li>兑换失败/不可用：按规则处理退款或补发</li>
+                  <li>席位异常：协助排查绑定邮箱、权限和订阅状态</li>
+                  <li>响应时效：工作时段优先处理</li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="contact-dock">
+    <div class="contact-dock-inner">
+      <div class="online-badge">
+        <span class="dot"></span>
+        客户经理在线
       </div>
-
-      <!-- 底部悬浮（避免遮挡中间按钮：外层 pointer-events-none） -->
-      <div class="fixed left-0 right-0 bottom-6 px-4 pointer-events-none">
-        <div class="max-w-[440px] mx-auto">
-          <div class="h-12 rounded-full bg-white/90 backdrop-blur border border-slate-200 shadow flex items-center justify-center gap-3 px-3 pointer-events-auto">
-            <div
-  class="h-9 px-3
-         flex items-center gap-2
-         text-slate-500
-         text-xs
-         select-none">
-  <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-  客户经理在线
-</div>
-
-
-            <!-- QQ -->
-<button id="qqBtn"
-  title="复制 QQ"
-  class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center">
-  <!-- QQ 图标（简洁版） -->
-  <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#12B7F5">
-    <path d="M511.9 64C282.7 64 96 250.7 96 479.9c0 135.6 68.6 255.3 173.3 327.2-2.1 9.4-13.1 59.8-2.6 79.2 0 0 9.2 13.5 27.6 0 18.4-13.5 54.7-39.6 84.5-44.9 43.6 12.2 90.3 18.8 139.7 18.8 49.5 0 96.1-6.6 139.7-18.8 29.8 5.3 66.1 31.4 84.5 44.9 18.4 13.5 27.6 0 27.6 0 10.5-19.4-0.5-69.8-2.6-79.2C859.4 735.2 928 615.5 928 479.9 928 250.7 741.3 64 511.9 64z"/>
-  </svg>
-</button>
-
-<!-- 微信 -->
-<button id="wechatBtn"
-  title="复制微信"
-  class="h-9 w-9 rounded-full border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center">
-  <!-- 微信图标 -->
-  <svg viewBox="0 0 1024 1024" width="18" height="18" fill="#07C160">
-    <path d="M512 64C264.6 64 64 240.5 64 458.7c0 125.2 73.6 235.7 188.7 306.2l-30.3 94.2c-3.3 10.3 7.9 19.6 17.6 14.4l112.7-61.4c50.6 14.1 104.5 21.8 159.3 21.8 247.4 0 448-176.5 448-394.7S759.4 64 512 64z"/>
-  </svg>
-</button>
-
-          </div>
-        </div>
-      </div>
-
+      <button id="qqBtn" title="复制 QQ" class="contact-btn" aria-label="复制 QQ">
+        <svg viewBox="0 0 1024 1024" fill="#43d9ff" aria-hidden="true">
+          <path d="M511.9 64C282.7 64 96 250.7 96 479.9c0 135.6 68.6 255.3 173.3 327.2-2.1 9.4-13.1 59.8-2.6 79.2 0 0 9.2 13.5 27.6 0 18.4-13.5 54.7-39.6 84.5-44.9 43.6 12.2 90.3 18.8 139.7 18.8 49.5 0 96.1-6.6 139.7-18.8 29.8 5.3 66.1 31.4 84.5 44.9 18.4 13.5 27.6 0 27.6 0 10.5-19.4-0.5-69.8-2.6-79.2C859.4 735.2 928 615.5 928 479.9 928 250.7 741.3 64 511.9 64z"></path>
+        </svg>
+      </button>
+      <button id="wechatBtn" title="复制微信" class="contact-btn" aria-label="复制微信">
+        <svg viewBox="0 0 1024 1024" fill="#8dfd61" aria-hidden="true">
+          <path d="M512 64C264.6 64 64 240.5 64 458.7c0 125.2 73.6 235.7 188.7 306.2l-30.3 94.2c-3.3 10.3 7.9 19.6 17.6 14.4l112.7-61.4c50.6 14.1 104.5 21.8 159.3 21.8 247.4 0 448-176.5 448-394.7S759.4 64 512 64z"></path>
+        </svg>
+      </button>
     </div>
-  </main>
+  </div>
 
   <script>
-/* ================== 配置 ================== */
-const DEFAULT_API = "https://team.doutao88.top/api/friend-redeem";
-const REQUEST_TIMEOUT_MS = 12000;
+    /* ================== 配置 ================== */
+    const DEFAULT_API = "https://team.doutao88.top/api/friend-redeem";
+    const REQUEST_TIMEOUT_MS = 12000;
 
-// 可通过 URL 参数 ?api=... 临时覆盖首选接口，也可在页面前注入 window.API_ENDPOINTS = [...]
-function resolveApiEndpoints() {
-  const endpoints = [];
-  const queryApi = new URLSearchParams(window.location.search).get("api");
-  if (queryApi) endpoints.push(queryApi);
+    function resolveApiEndpoints() {
+      const endpoints = [];
+      const queryApi = new URLSearchParams(window.location.search).get("api");
+      if (queryApi) endpoints.push(queryApi);
 
-  if (Array.isArray(window.API_ENDPOINTS)) {
-    endpoints.push(...window.API_ENDPOINTS);
-  }
+      if (Array.isArray(window.API_ENDPOINTS)) {
+        endpoints.push(...window.API_ENDPOINTS);
+      }
 
-  endpoints.push(DEFAULT_API);
-  return [...new Set(
-    endpoints
-      .map((v) => String(v || "").trim())
-      .filter((v) => /^https?:\/\//i.test(v))
-  )];
-}
-const API_ENDPOINTS = resolveApiEndpoints();
+      endpoints.push(DEFAULT_API);
+      return [...new Set(
+        endpoints
+          .map((v) => String(v || "").trim())
+          .filter((v) => /^https?:\/\//i.test(v))
+      )];
+    }
+    const API_ENDPOINTS = resolveApiEndpoints();
 
-/* ================== DOM 元素 ================== */
-const inviteCodeEl = document.getElementById("inviteCode");
-const emailEl = document.getElementById("email");
-const confirmEl = document.getElementById("confirm");
-const submitBtn = document.getElementById("submitBtn");
-const debugEl = document.getElementById("debug");
-const toggleGuaranteeBtn = document.getElementById("toggleGuarantee");
-const guaranteeEl = document.getElementById("guarantee");
-const arrowEl = document.getElementById("arrow");
+    /* ================== DOM 元素 ================== */
+    const inviteCodeEl = document.getElementById("inviteCode");
+    const emailEl = document.getElementById("email");
+    const confirmEl = document.getElementById("confirm");
+    const submitBtn = document.getElementById("submitBtn");
+    const debugEl = document.getElementById("debug");
+    const toggleGuaranteeBtn = document.getElementById("toggleGuarantee");
+    const guaranteeEl = document.getElementById("guarantee");
+    const arrowEl = document.getElementById("arrow");
 
-// Modal 元素（必须存在于 HTML）
-const modalEl = document.getElementById("modal");
-const modalCardEl = document.getElementById("modalCard");
-const modalBackdropEl = document.getElementById("modalBackdrop");
-const modalIconEl = document.getElementById("modalIcon");
-const modalTitleEl = document.getElementById("modalTitle");
-const modalMsgEl = document.getElementById("modalMsg");
-const modalCloseBtnEl = document.getElementById("modalCloseBtn");
-const modalOkBtnEl = document.getElementById("modalOkBtn");
+    const modalEl = document.getElementById("modal");
+    const modalCardEl = document.getElementById("modalCard");
+    const modalBackdropEl = document.getElementById("modalBackdrop");
+    const modalIconEl = document.getElementById("modalIcon");
+    const modalTitleEl = document.getElementById("modalTitle");
+    const modalMsgEl = document.getElementById("modalMsg");
+    const modalCloseBtnEl = document.getElementById("modalCloseBtn");
+    const modalOkBtnEl = document.getElementById("modalOkBtn");
 
-/* ================== 工具 ================== */
-function isValidEmail(v) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
-}
+    /* ================== 工具 ================== */
+    function isValidEmail(v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
+    }
 
-function setDebug(msg = "", tone = "text-slate-500") {
-  if (!debugEl) return;
-  debugEl.textContent = msg;
-  debugEl.className = `text-xs mt-2 ${tone}`;
-}
+    function setDebug(msg = "", tone = "muted") {
+      if (!debugEl) return;
+      debugEl.textContent = msg;
+      debugEl.className = `debug debug-${tone}`;
+    }
 
-function endpointLabel(url) {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
+    function endpointLabel(url) {
+      try {
+        return new URL(url).host;
+      } catch {
+        return url;
+      }
+    }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
+    async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
 
-async function submitWithFallback(payload) {
-  let lastError = "";
+    async function submitWithFallback(payload) {
+      let lastError = "";
 
-  for (const endpoint of API_ENDPOINTS) {
-    try {
-      const res = await fetchWithTimeout(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      for (const endpoint of API_ENDPOINTS) {
+        try {
+          const res = await fetchWithTimeout(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          const text = await res.text();
+          let data = {};
+          try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+          if (res.ok) {
+            return { ok: true, data, endpoint };
+          }
+
+          const retryable = res.status === 404 || res.status === 408 || res.status === 429 || res.status >= 500;
+          if (!retryable) {
+            return { ok: false, data, endpoint, status: res.status };
+          }
+
+          lastError = `接口 ${endpointLabel(endpoint)} 返回 ${res.status}`;
+        } catch (e) {
+          if (e?.name === "AbortError") {
+            lastError = `连接 ${endpointLabel(endpoint)} 超时`;
+          } else {
+            lastError = `无法连接 ${endpointLabel(endpoint)}`;
+          }
+        }
+      }
+
+      throw new Error(lastError || "所有接口不可用");
+    }
+
+    /* ================== Modal ================== */
+    let modalShown = false;
+
+    function showModal(type, title, msg, options = {}) {
+      if (!modalEl || !modalCardEl || !modalBackdropEl || !modalTitleEl || !modalMsgEl) {
+        alert(`${title || "提示"}\n${msg || ""}`);
+        if (typeof options.onClose === "function") options.onClose();
+        return;
+      }
+
+      const modalType = type || "info";
+      modalEl.dataset.type = modalType;
+      modalTitleEl.textContent = title || (modalType === "success" ? "成功" : "失败");
+      modalMsgEl.textContent = msg || "";
+
+      if (modalIconEl) {
+        modalIconEl.textContent = modalType === "success" ? "✓" : modalType === "error" ? "!" : "i";
+      }
+
+      modalEl.classList.remove("hidden");
+      modalShown = true;
+
+      requestAnimationFrame(() => {
+        modalEl.classList.add("show");
       });
 
-      const text = await res.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch { data = { message: text }; }
-
-      if (res.ok) {
-        return { ok: true, data, endpoint };
-      }
-
-      const retryable = res.status === 404 || res.status === 408 || res.status === 429 || res.status >= 500;
-      if (!retryable) {
-        return { ok: false, data, endpoint, status: res.status };
-      }
-
-      lastError = `接口 ${endpointLabel(endpoint)} 返回 ${res.status}`;
-    } catch (e) {
-      if (e?.name === "AbortError") {
-        lastError = `连接 ${endpointLabel(endpoint)} 超时`;
-      } else {
-        lastError = `无法连接 ${endpointLabel(endpoint)}`;
-      }
-    }
-  }
-
-  throw new Error(lastError || "所有接口不可用");
-}
-
-/* ================== Modal（增强版） ================== */
-let modalShown = false;
-
-function showModal(type, title, msg, options = {}) {
-  // 如果 modal 结构缺失，就退化为 alert（防止你页面少了 HTML 导致“没反应”）
-  if (!modalEl || !modalCardEl || !modalBackdropEl || !modalTitleEl || !modalMsgEl) {
-    alert(`${title || "提示"}\n${msg || ""}`);
-    if (typeof options.onClose === "function") options.onClose();
-    return;
-  }
-
-  modalTitleEl.textContent = title || (type === "success" ? "成功" : "失败");
-  modalMsgEl.textContent = msg || "";
-
-  // 成功/失败样式
-  if (type === "success") {
-    if (modalIconEl) {
-      modalIconEl.textContent = "✓";
-      modalIconEl.className =
-        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-emerald-100 text-emerald-700";
-    }
-    modalTitleEl.className = "text-lg font-semibold text-emerald-700";
-    modalCardEl.className =
-      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-emerald-200 opacity-0 scale-95 transition duration-150";
-  } else if (type === "error") {
-    if (modalIconEl) {
-      modalIconEl.textContent = "!";
-      modalIconEl.className =
-        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-red-100 text-red-700";
-    }
-    modalTitleEl.className = "text-lg font-semibold text-red-700";
-    modalCardEl.className =
-      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-red-200 opacity-0 scale-95 transition duration-150";
-  } else {
-    if (modalIconEl) {
-      modalIconEl.textContent = "i";
-      modalIconEl.className =
-        "h-10 w-10 rounded-full flex items-center justify-center text-lg bg-slate-100 text-slate-700";
-    }
-    modalTitleEl.className = "text-lg font-semibold text-slate-900";
-    modalCardEl.className =
-      "w-full max-w-[420px] rounded-2xl bg-white shadow-xl border border-slate-100 opacity-0 scale-95 transition duration-150";
-  }
-
-  modalEl.classList.remove("hidden");
-  modalShown = true;
-
-  // 动画
-  requestAnimationFrame(() => {
-    modalBackdropEl.classList.remove("opacity-0");
-    modalBackdropEl.classList.add("opacity-100");
-
-    modalCardEl.classList.remove("opacity-0", "scale-95");
-    modalCardEl.classList.add("opacity-100", "scale-100");
-  });
-
-  // 存关闭回调（例如：成功后清空表单）
-  modalEl.__onClose = options.onClose || null;
-}
-
-function hideModal() {
-  if (!modalShown || !modalEl) return;
-
-  // 退出动画
-  if (modalBackdropEl) {
-    modalBackdropEl.classList.remove("opacity-100");
-    modalBackdropEl.classList.add("opacity-0");
-  }
-  if (modalCardEl) {
-    modalCardEl.classList.remove("opacity-100", "scale-100");
-    modalCardEl.classList.add("opacity-0", "scale-95");
-  }
-
-  setTimeout(() => {
-    modalEl.classList.add("hidden");
-    modalShown = false;
-
-    // 关闭回调
-    if (typeof modalEl.__onClose === "function") {
-      try { modalEl.__onClose(); } catch {}
-    }
-    modalEl.__onClose = null;
-  }, 170);
-}
-
-// 绑定关闭事件（元素不存在就跳过）
-modalCloseBtnEl?.addEventListener("click", hideModal);
-modalOkBtnEl?.addEventListener("click", hideModal);
-modalBackdropEl?.addEventListener("click", hideModal);
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") hideModal();
-});
-
-/* ================== 表单状态控制 ================== */
-function refresh() {
-  if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
-
-  const code = inviteCodeEl.value.trim();
-  const em = emailEl.value.trim();
-  const ok = code.length > 0 && isValidEmail(em) && confirmEl.checked;
-
-  submitBtn.disabled = !ok;
-  submitBtn.className = ok
-    ? "w-full h-12 rounded-xl font-semibold transition bg-slate-900 text-white hover:bg-slate-800"
-    : "w-full h-12 rounded-xl font-semibold transition bg-slate-200 text-slate-500 cursor-not-allowed";
-}
-
-// 输入变化就刷新按钮状态
-["input", "change"].forEach((evt) => {
-  inviteCodeEl?.addEventListener(evt, refresh);
-  emailEl?.addEventListener(evt, refresh);
-  confirmEl?.addEventListener(evt, refresh);
-});
-
-/* ================== 提交逻辑 ================== */
-submitBtn?.addEventListener("click", async () => {
-  if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
-  if (submitBtn.disabled) return;
-
-  // 上锁 & loading
-  const oldText = submitBtn.textContent;
-  submitBtn.disabled = true;
-  submitBtn.textContent = "提交中...";
-
-  try {
-    setDebug("正在提交，请稍候...", "text-slate-500");
-
-    const payload = {
-      inviteCode: inviteCodeEl.value.trim(),
-      email: emailEl.value.trim(),
-    };
-    const result = await submitWithFallback(payload);
-
-    if (!result.ok) {
-      showModal("error", "兑换失败", result.data?.message || "请求失败");
-      setDebug(`业务拒绝：${result.data?.message || `HTTP ${result.status}`}`, "text-red-500");
-      return;
+      modalEl.__onClose = options.onClose || null;
     }
 
-    showModal("success", "兑换成功", result.data?.message || "操作成功", {
-      onClose: () => {
-        inviteCodeEl.value = "";
-        emailEl.value = "";
-        confirmEl.checked = false;
+    function hideModal() {
+      if (!modalShown || !modalEl) return;
+      modalEl.classList.remove("show");
+
+      setTimeout(() => {
+        modalEl.classList.add("hidden");
+        modalShown = false;
+
+        if (typeof modalEl.__onClose === "function") {
+          try { modalEl.__onClose(); } catch {}
+        }
+        modalEl.__onClose = null;
+      }, 170);
+    }
+
+    modalCloseBtnEl?.addEventListener("click", hideModal);
+    modalOkBtnEl?.addEventListener("click", hideModal);
+    modalBackdropEl?.addEventListener("click", hideModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideModal();
+    });
+
+    /* ================== 表单状态 ================== */
+    function refresh() {
+      if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
+
+      const code = inviteCodeEl.value.trim();
+      const em = emailEl.value.trim();
+      const ok = code.length > 0 && isValidEmail(em) && confirmEl.checked;
+
+      submitBtn.disabled = !ok;
+      submitBtn.classList.toggle("is-enabled", ok);
+    }
+
+    ["input", "change"].forEach((evt) => {
+      inviteCodeEl?.addEventListener(evt, refresh);
+      emailEl?.addEventListener(evt, refresh);
+      confirmEl?.addEventListener(evt, refresh);
+    });
+
+    /* ================== 提交逻辑 ================== */
+    submitBtn?.addEventListener("click", async () => {
+      if (!inviteCodeEl || !emailEl || !confirmEl || !submitBtn) return;
+      if (submitBtn.disabled) return;
+
+      const oldText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "提交中...";
+      submitBtn.classList.remove("is-enabled");
+
+      try {
+        setDebug("正在提交，请稍候...", "muted");
+
+        const payload = {
+          inviteCode: inviteCodeEl.value.trim(),
+          email: emailEl.value.trim(),
+        };
+        const result = await submitWithFallback(payload);
+
+        if (!result.ok) {
+          showModal("error", "兑换失败", result.data?.message || "请求失败");
+          setDebug(`业务拒绝：${result.data?.message || `HTTP ${result.status}`}`, "error");
+          return;
+        }
+
+        showModal("success", "兑换成功", result.data?.message || "操作成功", {
+          onClose: () => {
+            inviteCodeEl.value = "";
+            emailEl.value = "";
+            confirmEl.checked = false;
+            refresh();
+          },
+        });
+        setDebug(`提交成功（通道：${endpointLabel(result.endpoint)}）`, "success");
+      } catch (e) {
+        const msg = "当前网络无法连接兑换接口。请稍后重试，或切换网络后再提交。";
+        showModal("error", "网络错误", msg);
+        setDebug(`${e?.message || "网络请求失败"}。${msg}`, "error");
+      } finally {
+        submitBtn.textContent = oldText;
         refresh();
-      },
+      }
     });
-    setDebug(`提交成功（通道：${endpointLabel(result.endpoint)}）`, "text-emerald-600");
-  } catch (e) {
-    const msg = "当前网络无法连接兑换接口。请切换可访问 Cloudflare 的网络，或将 Worker 绑定自定义域名后重试。";
-    showModal("error", "网络错误", msg);
-    setDebug(`${e?.message || "网络请求失败"}。${msg}`, "text-red-500");
-  } finally {
-    submitBtn.textContent = oldText;
-    refresh(); // 用 refresh() 恢复 disabled/样式
-  }
-});
 
-/********************
- * 顶部横条提示
- ********************/
-function showTopBanner(msg, type = "success") {
-  const box = document.getElementById("topBanner");
-  const inner = document.getElementById("topBannerInner");
-  const text = document.getElementById("topBannerMsg");
+    /* ================== 顶部提示 ================== */
+    function showTopBanner(msg, type = "success") {
+      const box = document.getElementById("topBanner");
+      const text = document.getElementById("topBannerMsg");
+      if (!box || !text) return;
 
-  if (!box || !inner || !text) return;
+      text.textContent = msg || "提示";
+      box.dataset.type = type;
+      box.classList.remove("hidden");
 
-  text.textContent = msg || "提示";
+      clearTimeout(window.__topBannerTimer);
+      window.__topBannerTimer = setTimeout(() => {
+        box.classList.add("hidden");
+      }, 2200);
+    }
 
-  inner.className =
-    "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border " +
-    (type === "success"
-      ? "bg-emerald-500 text-white border-emerald-400"
-      : "bg-red-500 text-white border-red-400");
+    /* ================== 复制逻辑 ================== */
+    async function copyAndNotify(value, label) {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        const input = document.createElement("textarea");
+        input.value = value;
+        input.style.position = "fixed";
+        input.style.left = "-9999px";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
+      }
 
-  box.classList.remove("hidden");
+      showTopBanner(`已复制！请打开 ${label} 添加好友：${value}`, "success");
+    }
 
-  clearTimeout(window.__topBannerTimer);
-  window.__topBannerTimer = setTimeout(() => {
-    box.classList.add("hidden");
-  }, 2200);
-}
+    /* ================== 绑定按钮 ================== */
+    window.addEventListener("DOMContentLoaded", () => {
+      const QQ_NUMBER = "1741402571";
+      const WECHAT_ID = "ddyyds2024";
 
-/********************
- * 复制到剪切板（通用）
- ********************/
-async function copyAndNotify(value, label) {
-  try {
-    await navigator.clipboard.writeText(value);
-  } catch (e) {
-    // 兜底兼容
-    const input = document.createElement("textarea");
-    input.value = value;
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-  }
+      const qqBtn = document.getElementById("qqBtn");
+      const wechatBtn = document.getElementById("wechatBtn");
 
-  showTopBanner(`已复制！请打开 ${label} 添加好友：${value}`, "success");
-}
+      qqBtn?.addEventListener("click", () => {
+        copyAndNotify(QQ_NUMBER, "QQ");
+      });
 
-/********************
- * 绑定按钮
- ********************/
-window.addEventListener("DOMContentLoaded", () => {
-  const QQ_NUMBER = "1741402571";
-  const WECHAT_ID = "ddyyds2024";
+      wechatBtn?.addEventListener("click", () => {
+        copyAndNotify(WECHAT_ID, "微信");
+      });
 
-  const qqBtn = document.getElementById("qqBtn");
-  const wechatBtn = document.getElementById("wechatBtn");
-
-  if (qqBtn) {
-    qqBtn.addEventListener("click", () => {
-      copyAndNotify(QQ_NUMBER, "QQ");
+      toggleGuaranteeBtn?.addEventListener("click", () => {
+        if (!guaranteeEl) return;
+        const willShow = guaranteeEl.classList.contains("hidden");
+        guaranteeEl.classList.toggle("hidden");
+        if (arrowEl) arrowEl.textContent = willShow ? "▴" : "▾";
+      });
     });
-  }
 
-  if (wechatBtn) {
-    wechatBtn.addEventListener("click", () => {
-      copyAndNotify(WECHAT_ID, "微信");
-    });
-  }
-
-  toggleGuaranteeBtn?.addEventListener("click", () => {
-    if (!guaranteeEl) return;
-    const willShow = guaranteeEl.classList.contains("hidden");
-    guaranteeEl.classList.toggle("hidden");
-    if (arrowEl) arrowEl.textContent = willShow ? "▴" : "▾";
-  });
-});
-
-/* ================== 初始化 ================== */
-refresh();
-if (API_ENDPOINTS.length === 1 && API_ENDPOINTS[0].includes("workers.dev")) {
-  setDebug("中国大陆网络可能不稳定。挂TI提交", "text-amber-600");
-}
-</script>
-
-
+    /* ================== 初始化 ================== */
+    refresh();
+    if (API_ENDPOINTS.length === 1 && API_ENDPOINTS[0].includes("workers.dev")) {
+      setDebug("当前仅使用 workers.dev 通道，中国大陆网络可能不稳定。建议绑定自定义域名 API。", "warn");
+    }
+  </script>
 </body>
 </html>
-
-
