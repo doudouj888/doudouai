@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -213,13 +213,37 @@
 
   <script>
 /* ================== 配置 ================== */
-const API = "https://teawork.1741402571.workers.dev/api/friend-redeem";
+const DEFAULT_API = "https://team.doutao88.top/api/friend-redeem";
+const REQUEST_TIMEOUT_MS = 12000;
+
+// 可通过 URL 参数 ?api=... 临时覆盖首选接口，也可在页面前注入 window.API_ENDPOINTS = [...]
+function resolveApiEndpoints() {
+  const endpoints = [];
+  const queryApi = new URLSearchParams(window.location.search).get("api");
+  if (queryApi) endpoints.push(queryApi);
+
+  if (Array.isArray(window.API_ENDPOINTS)) {
+    endpoints.push(...window.API_ENDPOINTS);
+  }
+
+  endpoints.push(DEFAULT_API);
+  return [...new Set(
+    endpoints
+      .map((v) => String(v || "").trim())
+      .filter((v) => /^https?:\/\//i.test(v))
+  )];
+}
+const API_ENDPOINTS = resolveApiEndpoints();
 
 /* ================== DOM 元素 ================== */
 const inviteCodeEl = document.getElementById("inviteCode");
 const emailEl = document.getElementById("email");
 const confirmEl = document.getElementById("confirm");
 const submitBtn = document.getElementById("submitBtn");
+const debugEl = document.getElementById("debug");
+const toggleGuaranteeBtn = document.getElementById("toggleGuarantee");
+const guaranteeEl = document.getElementById("guarantee");
+const arrowEl = document.getElementById("arrow");
 
 // Modal 元素（必须存在于 HTML）
 const modalEl = document.getElementById("modal");
@@ -234,6 +258,67 @@ const modalOkBtnEl = document.getElementById("modalOkBtn");
 /* ================== 工具 ================== */
 function isValidEmail(v) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((v || "").trim());
+}
+
+function setDebug(msg = "", tone = "text-slate-500") {
+  if (!debugEl) return;
+  debugEl.textContent = msg;
+  debugEl.className = `text-xs mt-2 ${tone}`;
+}
+
+function endpointLabel(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function submitWithFallback(payload) {
+  let lastError = "";
+
+  for (const endpoint of API_ENDPOINTS) {
+    try {
+      const res = await fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+      if (res.ok) {
+        return { ok: true, data, endpoint };
+      }
+
+      const retryable = res.status === 404 || res.status === 408 || res.status === 429 || res.status >= 500;
+      if (!retryable) {
+        return { ok: false, data, endpoint, status: res.status };
+      }
+
+      lastError = `接口 ${endpointLabel(endpoint)} 返回 ${res.status}`;
+    } catch (e) {
+      if (e?.name === "AbortError") {
+        lastError = `连接 ${endpointLabel(endpoint)} 超时`;
+      } else {
+        lastError = `无法连接 ${endpointLabel(endpoint)}`;
+      }
+    }
+  }
+
+  throw new Error(lastError || "所有接口不可用");
 }
 
 /* ================== Modal（增强版） ================== */
@@ -361,26 +446,21 @@ submitBtn?.addEventListener("click", async () => {
   submitBtn.textContent = "提交中...";
 
   try {
-    const res = await fetch(API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        inviteCode: inviteCodeEl.value.trim(),
-        email: emailEl.value.trim(),
-      }),
-    });
+    setDebug("正在提交，请稍候...", "text-slate-500");
 
-    const text = await res.text();
-    let data = {};
-    try { data = JSON.parse(text); } catch { data = { message: text }; }
+    const payload = {
+      inviteCode: inviteCodeEl.value.trim(),
+      email: emailEl.value.trim(),
+    };
+    const result = await submitWithFallback(payload);
 
-    if (!res.ok) {
-      showModal("error", "兑换失败", data.message || "请求失败");
+    if (!result.ok) {
+      showModal("error", "兑换失败", result.data?.message || "请求失败");
+      setDebug(`业务拒绝：${result.data?.message || `HTTP ${result.status}`}`, "text-red-500");
       return;
     }
 
-    // ✅ 成功弹窗（默认：关闭后清空表单）
-    showModal("success", "兑换成功", data.message || "操作成功", {
+    showModal("success", "兑换成功", result.data?.message || "操作成功", {
       onClose: () => {
         inviteCodeEl.value = "";
         emailEl.value = "";
@@ -388,9 +468,11 @@ submitBtn?.addEventListener("click", async () => {
         refresh();
       },
     });
-
+    setDebug(`提交成功（通道：${endpointLabel(result.endpoint)}）`, "text-emerald-600");
   } catch (e) {
-    showModal("error", "网络错误", "请使用谷歌浏览器或代理环境下兑换");
+    const msg = "当前网络无法连接兑换接口。请切换可访问 Cloudflare 的网络，或将 Worker 绑定自定义域名后重试。";
+    showModal("error", "网络错误", msg);
+    setDebug(`${e?.message || "网络请求失败"}。${msg}`, "text-red-500");
   } finally {
     submitBtn.textContent = oldText;
     refresh(); // 用 refresh() 恢复 disabled/样式
@@ -405,63 +487,9 @@ function showTopBanner(msg, type = "success") {
   const inner = document.getElementById("topBannerInner");
   const text = document.getElementById("topBannerMsg");
 
-  if (!box || !inner || !text) {
-    console.warn("TopBanner DOM 未找到");
-    return;
-  }
-
-  text.textContent = msg || "提示";
-
-  if (type === "success") {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-emerald-500 text-white border-emerald-400";
-  } else {
-    inner.className =
-      "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border bg-red-500 text-white border-red-400";
-  }
-
-  box.classList.remove("hidden");
-
-  clearTimeout(window.__topBannerTimer);
-  window.__topBannerTimer = setTimeout(() => {
-    box.classList.add("hidden");
-  }, 2200);
-}
-
-/********************
- * 复制到剪切板（最终版）
- ********************/
-async function copyTextAndNotify(text) {
-  try {
-    // 现代浏览器
-    await navigator.clipboard.writeText(text);
-    showTopBanner(`已复制！请打开QQ 添加好友：${1741402571}`, "success");
-  } catch (e) {
-    // 兜底方案（兼容老浏览器）
-    const input = document.createElement("textarea");
-    input.value = text;
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
-
-    showTopBanner(`已复制！请打开微信 添加好友：${ddyyds2024}`, "success");
-  }
-}
-
-/********************
- * 顶部横条提示
- ********************/
-function showTopBanner(msg, type = "success") {
-  const box = document.getElementById("topBanner");
-  const inner = document.getElementById("topBannerInner");
-  const text = document.getElementById("topBannerMsg");
-
   if (!box || !inner || !text) return;
 
-  text.textContent = msg;
+  text.textContent = msg || "提示";
 
   inner.className =
     "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg border " +
@@ -499,11 +527,11 @@ async function copyAndNotify(value, label) {
 }
 
 /********************
- * 绑定 QQ / 微信按钮（重点在这里）
+ * 绑定按钮
  ********************/
 window.addEventListener("DOMContentLoaded", () => {
-  const QQ_NUMBER = "1741402571";        // ← 你的 QQ 号
-  const WECHAT_ID = "ddyyds2024";    // ← 你的微信号
+  const QQ_NUMBER = "1741402571";
+  const WECHAT_ID = "ddyyds2024";
 
   const qqBtn = document.getElementById("qqBtn");
   const wechatBtn = document.getElementById("wechatBtn");
@@ -519,13 +547,24 @@ window.addEventListener("DOMContentLoaded", () => {
       copyAndNotify(WECHAT_ID, "微信");
     });
   }
+
+  toggleGuaranteeBtn?.addEventListener("click", () => {
+    if (!guaranteeEl) return;
+    const willShow = guaranteeEl.classList.contains("hidden");
+    guaranteeEl.classList.toggle("hidden");
+    if (arrowEl) arrowEl.textContent = willShow ? "▴" : "▾";
+  });
 });
 
 /* ================== 初始化 ================== */
 refresh();
+if (API_ENDPOINTS.length === 1 && API_ENDPOINTS[0].includes("workers.dev")) {
+  setDebug("中国大陆网络可能不稳定。挂TI提交", "text-amber-600");
+}
 </script>
 
 
 </body>
 </html>
+
 
