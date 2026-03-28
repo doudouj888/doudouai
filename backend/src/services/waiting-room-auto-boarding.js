@@ -1,6 +1,7 @@
 import { getDatabase, saveDatabase } from '../database/init.js'
 import { syncAccountInviteCount, syncAccountUserCount } from './account-sync.js'
 import { inviteUserToChatGPTTeam } from './chatgpt-invite.js'
+import { getTeamCapacityLimitSync } from '../utils/team-capacity-settings.js'
 
 const LABEL = '[WaitingRoomAutoBoarding]'
 const DEFAULT_ACTIVE_HOURS = [8, 9, 10, 11, 12, 13, 14]
@@ -243,6 +244,7 @@ function releaseReservation(db, entryId, codeId) {
 }
 
 function selectAccountForCode(db, accountEmail) {
+  const capacityLimit = getTeamCapacityLimitSync(db)
   if (accountEmail) {
     const result = db.exec(
       `
@@ -250,10 +252,10 @@ function selectAccountForCode(db, accountEmail) {
              client_profile_key, client_user_agent, client_accept_language, client_oai_language
       FROM gpt_accounts
       WHERE email = ?
-        AND COALESCE(user_count, 0) + COALESCE(invite_count, 0) < 6
+        AND COALESCE(user_count, 0) + COALESCE(invite_count, 0) < ?
       LIMIT 1
       `,
-      [accountEmail]
+      [accountEmail, capacityLimit]
     )
     if (result.length && result[0].values.length) {
       const [id, email, token, userCount, chatgptAccountId, oaiDeviceId, clientProfileKey, clientUserAgent, clientAcceptLanguage, clientOaiLanguage] = result[0].values[0]
@@ -266,10 +268,11 @@ function selectAccountForCode(db, accountEmail) {
       SELECT id, email, token, user_count, chatgpt_account_id, oai_device_id,
              client_profile_key, client_user_agent, client_accept_language, client_oai_language
       FROM gpt_accounts
-      WHERE COALESCE(user_count, 0) + COALESCE(invite_count, 0) < 6
+      WHERE COALESCE(user_count, 0) + COALESCE(invite_count, 0) < ?
       ORDER BY COALESCE(user_count, 0) + COALESCE(invite_count, 0) ASC, RANDOM()
       LIMIT 1
-    `
+    `,
+    [capacityLimit]
   )
 
   if (!fallback.length || !fallback[0].values.length) {
@@ -330,10 +333,11 @@ async function redeemReservedCode(db, entry, code) {
       SET is_redeemed = 1,
           redeemed_at = DATETIME('now', 'localtime'),
           redeemed_by = ?,
+          account_email = ?,
           updated_at = DATETIME('now', 'localtime')
       WHERE id = ?
     `,
-    [redeemerIdentifier, codeId]
+    [redeemerIdentifier, account.email, codeId]
   )
 
   db.run(

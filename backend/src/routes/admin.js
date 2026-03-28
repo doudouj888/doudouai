@@ -11,6 +11,11 @@ import { listUserPointsLedger, safeInsertPointsLedgerEntry } from '../utils/poin
 import { upsertSystemConfigValue } from '../utils/system-config.js'
 import { getSmtpSettings, getSmtpSettingsFromEnv, invalidateSmtpSettingsCache, parseBool } from '../utils/smtp-settings.js'
 import {
+  getTeamCapacitySettings,
+  invalidateTeamCapacitySettingsCache,
+  normalizeTeamCapacityLimit
+} from '../utils/team-capacity-settings.js'
+import {
   getLinuxDoOAuthSettings,
   getLinuxDoOAuthSettingsFromEnv,
   getLinuxDoCreditSettings,
@@ -814,6 +819,54 @@ router.put('/account-recovery-settings', async (req, res) => {
     })
   } catch (error) {
     console.error('Update account-recovery-settings error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+router.get('/team-capacity-settings', async (req, res) => {
+  try {
+    const db = await getDatabase()
+    const settings = await getTeamCapacitySettings(db, { forceRefresh: true })
+    return res.json({
+      settings: {
+        teamCapacityLimit: Number(settings.teamCapacityLimit || 0) || 0
+      }
+    })
+  } catch (error) {
+    console.error('Get team-capacity-settings error:', error)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+router.put('/team-capacity-settings', async (req, res) => {
+  try {
+    const payload = req.body?.settings && typeof req.body.settings === 'object' ? req.body.settings : (req.body || {})
+
+    if (!('teamCapacityLimit' in payload)) {
+      return res.status(400).json({ error: 'No settings provided' })
+    }
+
+    const rawValue = payload.teamCapacityLimit
+    const parsedValue = Number.parseInt(String(rawValue ?? ''), 10)
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0 || parsedValue > 999) {
+      return res.status(400).json({ error: 'Invalid teamCapacityLimit' })
+    }
+
+    const db = await getDatabase()
+    const teamCapacityLimit = normalizeTeamCapacityLimit(parsedValue)
+
+    upsertSystemConfigValue(db, 'team_capacity_limit', String(teamCapacityLimit))
+    saveDatabase()
+    invalidateTeamCapacitySettingsCache()
+
+    const updated = await getTeamCapacitySettings(db, { forceRefresh: true })
+    return res.json({
+      settings: {
+        teamCapacityLimit: Number(updated.teamCapacityLimit || 0) || 0
+      }
+    })
+  } catch (error) {
+    console.error('Update team-capacity-settings error:', error)
     return res.status(500).json({ error: 'Internal server error' })
   }
 })
@@ -3564,7 +3617,8 @@ router.get('/account-recovery/one-click/preview', async (req, res) => {
     const db = await getDatabase()
 
     // Best-effort inventory count (common channel only); actual recovery may still fail due to per-order expiry requirements.
-    const capacityLimit = 6
+    const capacitySettings = await getTeamCapacitySettings(db)
+    const capacityLimit = capacitySettings.teamCapacityLimit
     const availableResult = db.exec(
       `
         SELECT COUNT(*)
@@ -3986,11 +4040,12 @@ router.post('/account-recovery/recover', async (req, res) => {
         const triedRecoveryCodeIds = new Set()
         let lastAttemptError = null
         let lastAttemptRecovery = null
+        const { teamCapacityLimit } = await getTeamCapacitySettings(db)
 
         for (let attempt = 1; attempt <= ACCOUNT_RECOVERY_REDEEM_MAX_ATTEMPTS; attempt += 1) {
           const selectedRecovery = selectRecoveryCode(db, {
             minExpireMs: requireExpireCoverDeadline ? orderDeadlineMs : Date.now(),
-            capacityLimit: 6,
+            capacityLimit: teamCapacityLimit,
             preferNonToday: requireExpireCoverDeadline,
             preferLatestExpire: !requireExpireCoverDeadline,
             limit: 200,

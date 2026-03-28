@@ -11,6 +11,7 @@ import {
 import { withLocks } from '../utils/locks.js'
 import { requireFeatureEnabled } from '../middleware/feature-flags.js'
 import { resolvePublicBaseUrl } from '../utils/public-base-url.js'
+import { getTeamCapacitySettings } from '../utils/team-capacity-settings.js'
 
 const router = express.Router()
 
@@ -668,12 +669,13 @@ router.post('/:accountId/board', authenticateLinuxDoSession, async (req, res) =>
             () => syncCardCounts(accountId)
           )
           if (verifiedCreditOrderNo) {
+            const { teamCapacityLimit } = await getTeamCapacitySettings(db)
             const redeemOutcome = await redeemOpenAccountsOrderCode(db, {
               orderNo: verifiedCreditOrderNo,
               uid,
               email: orderEmail,
               accountEmail,
-              capacityLimit: 6,
+              capacityLimit: teamCapacityLimit + 1,
               orderType: verifiedOrderType
             })
             if (!redeemOutcome.ok) {
@@ -738,7 +740,7 @@ router.post('/:accountId/board', authenticateLinuxDoSession, async (req, res) =>
 	            return { type: 'error', status: 500, error: '未配置上车所需积分' }
 	          }
 
-	          const baseCapacity = 5
+	          const { teamCapacityLimit: baseCapacity } = await getTeamCapacitySettings(db)
 	          // 若用户尚未在目标账号的成员/邀请列表中，且账号已满员，则不创建订单，避免授权后无法上车。
 	          if (!isMember && !isInvited) {
 	            const seatsUsed = Number(account.userCount || 0) + Number(account.inviteCount || 0)
@@ -873,8 +875,8 @@ router.post('/:accountId/board', authenticateLinuxDoSession, async (req, res) =>
           }
         }
 
-	        const baseCapacity = 5
-	        const redeemCapacity = isMember || isInvited ? 6 : baseCapacity
+	        const { teamCapacityLimit: baseCapacity } = await getTeamCapacitySettings(db)
+	        const redeemCapacity = isMember || isInvited ? baseCapacity + 1 : baseCapacity
 	        const redeemOutcome = await redeemOpenAccountsOrderCode(db, {
 	          orderNo: verifiedCreditOrderNo,
 	          uid,

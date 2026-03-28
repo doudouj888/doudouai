@@ -311,6 +311,21 @@ router.post('/', apiKeyAuth, async (req, res) => {
 
       // 自动生成兑换码，数量为可用名额
       // 可用名额 = 总容量(5) - 当前人数(1) - 所有兑换码数(0) = 4
+      saveDatabase()
+
+      const { account: responseAccount, syncResult, removedUsers } = await syncAccountAndCleanup(account)
+
+      return res.status(201).json({
+        success: true,
+        message: '自动上车成功！账号已添加到系统',
+        action: 'created',
+        account: responseAccount,
+        generatedCodes: [],
+        codesMessage: '已取消自动生成兑换码，请前往兑换码管理手动批量预生成',
+        syncResult,
+        removedUsers
+      })
+
       const totalCapacity = 5
       const currentUserCount = 1  // 刚创建的账号默认人数为1
       const allCodesCount = 0  // 新账号还没有任何兑换码

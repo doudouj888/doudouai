@@ -963,6 +963,12 @@ export interface AdminAccountRecoverySettingsResponse {
   }
 }
 
+export interface AdminTeamCapacitySettingsResponse {
+  settings: {
+    teamCapacityLimit: number
+  }
+}
+
 export interface AdminPointsWithdrawSettingsResponse {
   rate: {
     points: number
@@ -1247,6 +1253,20 @@ export const adminService = {
     }
   }): Promise<AdminAccountRecoverySettingsResponse> {
     const response = await api.put('/admin/account-recovery-settings', payload)
+    return response.data
+  },
+
+  async getTeamCapacitySettings(): Promise<AdminTeamCapacitySettingsResponse> {
+    const response = await api.get('/admin/team-capacity-settings')
+    return response.data
+  },
+
+  async updateTeamCapacitySettings(payload: {
+    settings: {
+      teamCapacityLimit: number
+    }
+  }): Promise<AdminTeamCapacitySettingsResponse> {
+    const response = await api.put('/admin/team-capacity-settings', payload)
     return response.data
   },
 
@@ -2184,8 +2204,8 @@ export const redemptionCodeService = {
     return response.data
   },
 
-  async batchCreate(count: number, accountEmail: string, channel?: RedemptionChannel): Promise<BatchCreateResponse> {
-    const response = await api.post('/redemption-codes/batch', { count, accountEmail, ...(channel ? { channel } : {}) })
+  async batchCreate(count: number, accountEmail?: string, channel?: RedemptionChannel): Promise<BatchCreateResponse> {
+    const response = await api.post('/redemption-codes/batch', { count, ...(accountEmail ? { accountEmail } : {}), ...(channel ? { channel } : {}) })
     return response.data
   },
 

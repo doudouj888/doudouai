@@ -2,6 +2,7 @@ import express from 'express'
 import { getDatabase } from '../database/init.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { requireSuperAdmin } from '../middleware/rbac.js'
+import { getTeamCapacitySettings } from '../utils/team-capacity-settings.js'
 
 const router = express.Router()
 
@@ -47,8 +48,6 @@ const resolveDateRange = (query) => {
   return { ok: true, from, to }
 }
 
-const ACCOUNT_CAPACITY = 6
-
 router.get('/overview', async (req, res) => {
   const range = resolveDateRange(req.query)
   if (!range.ok) {
@@ -57,6 +56,7 @@ router.get('/overview', async (req, res) => {
 
   try {
     const db = await getDatabase()
+    const { teamCapacityLimit } = await getTeamCapacitySettings(db)
     const { from, to } = range
 
     const scalar = (sql, params = []) => {
@@ -82,7 +82,7 @@ router.get('/overview', async (req, res) => {
     const gptAccountsOpen = scalar(`SELECT COUNT(*) FROM gpt_accounts WHERE COALESCE(is_open, 0) = 1`)
     const gptAccountsUsedSeats = scalar(`SELECT COALESCE(SUM(COALESCE(user_count, 0)), 0) FROM gpt_accounts`)
     const gptAccountsInvitePending = scalar(`SELECT COALESCE(SUM(COALESCE(invite_count, 0)), 0) FROM gpt_accounts`)
-    const gptAccountsTotalSeats = gptAccountsTotal * ACCOUNT_CAPACITY
+    const gptAccountsTotalSeats = gptAccountsTotal * teamCapacityLimit
     const gptAccountsSeatUtilization = gptAccountsTotalSeats > 0 ? gptAccountsUsedSeats / gptAccountsTotalSeats : 0
 
     const codesTotal = scalar('SELECT COUNT(*) FROM redemption_codes')

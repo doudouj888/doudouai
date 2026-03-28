@@ -1,3 +1,5 @@
+import { getTeamCapacityLimitSync } from '../utils/team-capacity-settings.js'
+
 const toInt = (value, fallback = 0) => {
   const parsed = Number.parseInt(String(value ?? ''), 10)
   return Number.isFinite(parsed) ? parsed : fallback
@@ -136,7 +138,7 @@ export function selectRecoveryCode(
   db,
   {
     minExpireMs,
-    capacityLimit = 6,
+    capacityLimit = null,
     preferNonToday = true,
     preferLatestExpire = false,
     limit = 200,
@@ -151,7 +153,7 @@ export function selectRecoveryCode(
   const parsedMinExpireMs = Number(minExpireMs)
   const effectiveMinExpireMs = Math.max(nowMs, Number.isFinite(parsedMinExpireMs) ? parsedMinExpireMs : nowMs)
   const effectiveMinExpireSeconds = Math.floor(effectiveMinExpireMs / 1000)
-  const maxSeats = Math.max(1, Number(capacityLimit) || 6)
+  const maxSeats = Math.max(1, Number(capacityLimit) || getTeamCapacityLimitSync(db))
   const queryLimit = Math.min(500, Math.max(1, toInt(limit, 200)))
   const createdWithinDays = Math.min(365, Math.max(1, toInt(codeCreatedWithinDays, 7)))
   const createdSinceOffsetDays = Math.max(0, createdWithinDays - 1)

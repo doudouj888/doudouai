@@ -814,6 +814,14 @@ router.post('/', async (req, res) => {
 		    }
 
     // 生成随机兑换码的辅助函数
+    saveDatabase()
+
+    return res.status(201).json({
+      account,
+      generatedCodes: [],
+      message: '账号创建成功'
+    })
+
     function generateRedemptionCode(length = 12) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 排除容易混淆的字符
       let code = ''

@@ -33,6 +33,7 @@ import { getChannels, normalizeChannelKey } from '../utils/channels.js'
 import { buildAccountRecoveryEligibleCodeSql, resolveOrderDeadlineMs, selectRecoveryCode } from '../services/account-recovery.js'
 import { getAccountRecoverySettings } from '../utils/account-recovery-settings.js'
 import { getAccountRecoveryAccessCache, setAccountRecoveryAccessCache } from '../utils/account-recovery-access-cache.js'
+import { getTeamCapacityLimitSync } from '../utils/team-capacity-settings.js'
 import { checkViaUpstreamProvider, redeemViaUpstreamProvider } from '../services/upstream-provider.js'
 
 const router = express.Router()
@@ -624,7 +625,7 @@ export async function redeemCodeInternal({
   channel = 'common',
   orderType,
   redeemerUid,
-  capacityLimit = 6,
+  capacityLimit = null,
   skipCodeFormatValidation = false,
   allowCommonChannelFallback = false,
   allowNonOpenAccount = false,
@@ -649,6 +650,7 @@ export async function redeemCodeInternal({
   const normalizedRedeemerUid = redeemerUid != null ? String(redeemerUid).trim() : ''
 
   const db = await getDatabase()
+  const resolvedCapacityLimit = Math.max(1, Number(capacityLimit) || getTeamCapacityLimitSync(db))
   const { byKey: channelsByKey } = await getChannels(db)
   const requestedChannelConfig = channelsByKey.get(requestedChannel) || null
 
@@ -839,7 +841,7 @@ export async function redeemCodeInternal({
 
   let accountResult
 
-  const maxSeats = Math.max(1, Number(capacityLimit) || 5)
+  const maxSeats = resolvedCapacityLimit
   const nowMs = Date.now()
   const accountCandidatesLimit = 50
   const ACCOUNT_CANDIDATE_EXPIRE_AT_INDEX = 10
@@ -984,6 +986,11 @@ export async function redeemCodeInternal({
       "updated_at = DATETIME('now', 'localtime')",
     ]
     const updateParams = [redeemerIdentifier, resolvedOrderType]
+
+    if (!boundAccountEmail || normalizeEmail(boundAccountEmail) !== normalizeEmail(accountEmail)) {
+      updates.push('account_email = ?')
+      updateParams.push(accountEmail)
+    }
 
     if (fallbackFromCommonChannelAllowed && codeChannel !== requestedChannel) {
       const requestedChannelName = String(requestedChannelConfig?.name || '').trim() || requestedChannel
@@ -1455,27 +1462,35 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     }
 
     // 必须指定账号
-    if (!accountEmail) {
+    if (false && !accountEmail) {
       return res.status(400).json({ error: '必须指定所属账号邮箱' })
     }
 
     const db = await getDatabase()
+    const teamCapacityLimit = getTeamCapacityLimitSync(db)
     const { byKey: channelsByKey } = await getChannels(db)
+    const normalizedAccountEmail = String(accountEmail || '').trim().toLowerCase()
+    const shouldBindAccount = Boolean(normalizedAccountEmail)
+    let currentUserCount = 0
+    let unusedCodesCount = 0
+    let availableSlots = null
+    let actualCount = count
 
     // 检查账号是否存在并获取当前人数
-    const accountResult = db.exec(`
-      SELECT id, email, user_count FROM gpt_accounts WHERE email = ?
-    `, [accountEmail])
+    if (shouldBindAccount) {
+      const accountResult = db.exec(`
+      SELECT id, email, user_count FROM gpt_accounts WHERE lower(trim(email)) = ?
+    `, [normalizedAccountEmail])
 
     if (accountResult.length === 0 || accountResult[0].values.length === 0) {
       return res.status(404).json({ error: '指定的账号不存在' })
     }
 
     const accountRow = accountResult[0].values[0]
-    const currentUserCount = accountRow[2] || 0
+    currentUserCount = Number(accountRow[2] || 0)
 
     // 如果账号已满员（5人），不能创建兑换码
-    if (currentUserCount >= 5) {
+    if (currentUserCount >= teamCapacityLimit) {
       return res.status(400).json({
         error: '该账号已满员（5人），无法创建兑换码',
         currentUserCount: currentUserCount
@@ -1485,15 +1500,14 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     // 获取该账号未使用的兑换码数量
     const unusedCodesResult = db.exec(`
       SELECT COUNT(*) as count FROM redemption_codes
-      WHERE account_email = ? AND is_redeemed = 0
-    `, [accountEmail])
+      WHERE lower(trim(account_email)) = ? AND is_redeemed = 0
+    `, [normalizedAccountEmail])
 
-    const unusedCodesCount = unusedCodesResult[0]?.values[0]?.[0] || 0
+    unusedCodesCount = Number(unusedCodesResult[0]?.values[0]?.[0] || 0)
 
     // 计算实际可以生成的数量
     // 可创建数量 = 总容量(5) - 当前人数 - 未使用的兑换码数
-    const totalCapacity = 5
-    const availableSlots = totalCapacity - currentUserCount - unusedCodesCount
+    availableSlots = teamCapacityLimit - currentUserCount - unusedCodesCount
 
     if (availableSlots <= 0) {
       return res.status(400).json({
@@ -1505,11 +1519,13 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
       })
     }
 
-    const actualCount = Math.min(count, availableSlots)
+    actualCount = Math.min(count, availableSlots)
 
     // 如果请求数量超过可用名额，给出详细提示
     if (count > availableSlots) {
       console.log(`请求生成${count}个兑换码，但账号只有${availableSlots}个可用名额（当前${currentUserCount}人，已有${unusedCodesCount}个未使用兑换码），将只生成${actualCount}个`)
+    }
+
     }
 
     const normalizedChannel = normalizeChannel(channel, 'common')
@@ -1535,7 +1551,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
         try {
           db.run(
             `INSERT INTO redemption_codes (code, account_email, channel, channel_name, created_at, updated_at) VALUES (?, ?, ?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))`,
-            [code, accountEmail, normalizedChannel, resolvedChannelName]
+            [code, shouldBindAccount ? normalizedAccountEmail : null, normalizedChannel, resolvedChannelName]
           )
           createdCodes.push(code)
           success = true
@@ -1571,6 +1587,21 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     `, createdCodes)
 
     const codes = result[0]?.values.map(row => mapCodeRow(row, channelsByKey)) || []
+
+    return res.status(201).json({
+      message: shouldBindAccount
+        ? `鎴愬姛涓鸿处鍙?${normalizedAccountEmail} 鍒涘缓 ${createdCodes.length} 涓厬鎹㈢爜`
+        : `鎴愬姛鍒涘缓 ${createdCodes.length} 涓鐢熸垚鍏戞崲鐮?`,
+      codes,
+      failed: failedCodes.length,
+      currentUserCount: shouldBindAccount ? currentUserCount : undefined,
+      unusedCodesCount: shouldBindAccount ? unusedCodesCount + createdCodes.length : undefined,
+      allCodesCount: shouldBindAccount ? unusedCodesCount + createdCodes.length : undefined,
+      availableSlots: shouldBindAccount && availableSlots !== null ? availableSlots - createdCodes.length : undefined,
+      info: shouldBindAccount && availableSlots !== null && count > availableSlots
+        ? `鐢变簬璐﹀彿鍙敤鍚嶉闄愬埗锛堝綋鍓?${currentUserCount}浜?+ ${unusedCodesCount}涓湭浣跨敤鍏戞崲鐮侊級锛屽彧鐢熸垚浜?${actualCount}涓厬鎹㈢爜`
+        : undefined
+    })
 
     res.status(201).json({
       message: `成功为账号 ${accountEmail} 创建 ${createdCodes.length} 个兑换码`,
@@ -2272,7 +2303,7 @@ router.post('/recover', async (req, res) => {
         for (let attempt = 1; attempt <= ACCOUNT_RECOVERY_REDEEM_MAX_ATTEMPTS; attempt += 1) {
           const selectedRecovery = selectRecoveryCode(db, {
             minExpireMs: requireExpireCoverDeadline ? orderDeadlineMs : Date.now(),
-            capacityLimit: 6,
+            capacityLimit: getTeamCapacityLimitSync(db),
             preferNonToday: requireExpireCoverDeadline,
             preferLatestExpire: !requireExpireCoverDeadline,
             limit: 200,

@@ -8,6 +8,7 @@ import { getDownstreamSaleSettings } from '../utils/downstream-sale-settings.js'
 import { getZpaySettings } from '../utils/zpay-settings.js'
 import { resolvePublicBaseUrl } from '../utils/public-base-url.js'
 import { consumeRateLimit, getRequestClientIp } from '../utils/request-guard.js'
+import { getTeamCapacityLimitSync } from '../utils/team-capacity-settings.js'
 import {
   cleanupExpiredOrders,
   fetchOrder,
@@ -219,10 +220,13 @@ const getDownstreamAvailabilitySql = () => `
     AND (
       LOWER(TRIM(COALESCE(ch.redeem_mode, ''))) = 'external-card'
       OR (
-        rc.account_email IS NOT NULL
-        AND ga.is_open = 1
-        AND ga.user_count < 6
-        AND DATE(ga.created_at) = DATE('now', 'localtime')
+        rc.account_email IS NULL
+        OR TRIM(rc.account_email) = ''
+        OR (
+          ga.is_open = 1
+          AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) < ?
+          AND DATE(ga.created_at) = DATE('now', 'localtime')
+        )
       )
     )
     AND (
@@ -232,18 +236,20 @@ const getDownstreamAvailabilitySql = () => `
 `
 
 const getDownstreamAvailableCodeCount = (db) => {
+  const capacityLimit = getTeamCapacityLimitSync(db)
   const result = db.exec(
     `
       SELECT COUNT(*)
       ${getDownstreamAvailabilitySql()}
     `,
-    [SUPPLIER_STATUS_INVALID, SUPPLIER_STATUS_USED, SUPPLIER_STATUS_PROCESSING]
+    [capacityLimit, SUPPLIER_STATUS_INVALID, SUPPLIER_STATUS_USED, SUPPLIER_STATUS_PROCESSING]
   )
   return Number(result[0]?.values?.[0]?.[0] || 0)
 }
 
 const reserveDownstreamCodes = (db, { orderNo, email, quantity }) => {
   const normalizedQuantity = Math.max(1, Number(quantity) || 1)
+  const capacityLimit = getTeamCapacityLimitSync(db)
   const result = db.exec(
     `
       SELECT rc.id,
@@ -254,7 +260,7 @@ const reserveDownstreamCodes = (db, { orderNo, email, quantity }) => {
       ORDER BY ch.sort_order ASC, rc.created_at ASC, rc.id ASC
       LIMIT ?
     `,
-    [SUPPLIER_STATUS_INVALID, SUPPLIER_STATUS_USED, SUPPLIER_STATUS_PROCESSING, normalizedQuantity]
+    [capacityLimit, SUPPLIER_STATUS_INVALID, SUPPLIER_STATUS_USED, SUPPLIER_STATUS_PROCESSING, normalizedQuantity]
   )
   const rows = result[0]?.values || []
   if (rows.length < normalizedQuantity) return null

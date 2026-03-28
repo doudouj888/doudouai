@@ -38,6 +38,7 @@ type SettingsModuleId = 'general' | 'billing' | 'integrations' | 'upstream' | 'n
 type SettingsResourceKey =
   | 'apiKey'
   | 'featureFlags'
+  | 'teamCapacity'
   | 'accountRecovery'
   | 'channels'
   | 'purchaseProducts'
@@ -68,6 +69,7 @@ const activeNavItem = computed(() => settingsNav.find(n => n.id === settingsSubT
 const settingsResourceLoaded = ref<Record<SettingsResourceKey, boolean>>({
   apiKey: false,
   featureFlags: false,
+  teamCapacity: false,
   accountRecovery: false,
   channels: false,
   purchaseProducts: false,
@@ -148,6 +150,11 @@ const featureFlags = ref({
 const featureFlagsError = ref('')
 const featureFlagsSuccess = ref('')
 const featureFlagsLoading = ref(false)
+
+const teamCapacityLimit = ref('5')
+const teamCapacityError = ref('')
+const teamCapacitySuccess = ref('')
+const teamCapacityLoading = ref(false)
 
 // 补录设置（仅超级管理员）
 const accountRecoveryForceTodayCodes = ref(false)
@@ -560,6 +567,42 @@ watch(channelFormRedeemMode, (next) => {
   }
   channelFormProviderType.value = 'local'
 })
+
+const loadTeamCapacitySettings = async () => {
+  teamCapacityError.value = ''
+  teamCapacitySuccess.value = ''
+  try {
+    const response = await adminService.getTeamCapacitySettings()
+    teamCapacityLimit.value = String(response.settings?.teamCapacityLimit ?? 5)
+  } catch (err: any) {
+    teamCapacityError.value = err.response?.data?.error || '加载 Team 容量设置失败'
+  }
+}
+
+const saveTeamCapacitySettings = async () => {
+  teamCapacityError.value = ''
+  teamCapacitySuccess.value = ''
+  teamCapacityLoading.value = true
+  try {
+    const parsedValue = Number.parseInt(teamCapacityLimit.value, 10)
+    if (!Number.isFinite(parsedValue) || parsedValue <= 0 || parsedValue > 999) {
+      teamCapacityError.value = '请输入 1-999 之间的有效席位上限'
+      return
+    }
+    const response = await adminService.updateTeamCapacitySettings({
+      settings: {
+        teamCapacityLimit: parsedValue
+      }
+    })
+    teamCapacityLimit.value = String(response.settings?.teamCapacityLimit ?? parsedValue)
+    teamCapacitySuccess.value = '已保存'
+    setTimeout(() => (teamCapacitySuccess.value = ''), 3000)
+  } catch (err: any) {
+    teamCapacityError.value = err.response?.data?.error || '保存失败'
+  } finally {
+    teamCapacityLoading.value = false
+  }
+}
 
 const loadAccountRecoverySettings = async () => {
   accountRecoverySettingsError.value = ''
@@ -1777,6 +1820,8 @@ const getSettingsResourceLoader = (resource: SettingsResourceKey) => {
       return loadApiKey
     case 'featureFlags':
       return loadFeatureFlags
+    case 'teamCapacity':
+      return loadTeamCapacitySettings
     case 'accountRecovery':
       return loadAccountRecoverySettings
     case 'channels':
@@ -1809,7 +1854,7 @@ const getSettingsResourceLoader = (resource: SettingsResourceKey) => {
 }
 
 const settingsModuleResources: Record<SettingsModuleId, SettingsResourceKey[]> = {
-  general: ['emailWhitelist', 'featureFlags', 'accountRecovery'],
+  general: ['emailWhitelist', 'featureFlags', 'teamCapacity', 'accountRecovery'],
   billing: ['purchaseProducts', 'channels', 'downstreamSale', 'zpay', 'pointsWithdraw'],
   integrations: ['linuxdoOauth', 'linuxdoCredit', 'turnstile', 'telegram'],
   upstream: ['upstream'],
@@ -2201,6 +2246,57 @@ watch(activeTab, (next) => {
               @click="saveFeatureFlags"
             >
               {{ featureFlagsLoading ? '保存中...' : '保存功能开关' }}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card v-if="isSuperAdmin" class="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col lg:col-span-2">
+        <CardHeader class="border-b border-gray-50 bg-gray-50/30 px-6 py-5 sm:px-8 sm:py-6">
+          <CardTitle class="text-xl font-bold text-gray-900">Team 容量设置</CardTitle>
+          <CardDescription class="text-gray-500">
+            设置单个母号允许容纳的总席位上限。兑换、补录、开放账号、库存统计都会使用这里的值。
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="p-6 sm:p-8 space-y-5 flex-1">
+          <div class="space-y-2 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+            <Label for="teamCapacityLimit" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">单母号总席位</Label>
+            <Input
+              id="teamCapacityLimit"
+              v-model="teamCapacityLimit"
+              type="number"
+              min="1"
+              max="999"
+              placeholder="5"
+              class="h-11 bg-white border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-mono text-sm"
+            />
+            <p class="text-xs text-gray-400">支持 5、6、7、8 等任意正整数；保存后新兑换会按此上限自动匹配母号。</p>
+          </div>
+
+          <div v-if="teamCapacityError" class="rounded-xl bg-red-50 p-4 text-red-600 border border-red-100 text-sm font-medium">
+            {{ teamCapacityError }}
+          </div>
+
+          <div v-if="teamCapacitySuccess" class="rounded-xl bg-green-50 p-4 text-green-600 border border-green-100 text-sm font-medium">
+            {{ teamCapacitySuccess }}
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              class="w-full sm:w-auto h-11 px-4 border-gray-200 rounded-xl"
+              @click="loadTeamCapacitySettings"
+            >
+              刷新
+            </Button>
+            <Button
+              type="button"
+              :disabled="teamCapacityLoading"
+              class="w-full h-11 rounded-xl bg-black hover:bg-gray-800 text-white shadow-lg shadow-black/5"
+              @click="saveTeamCapacitySettings"
+            >
+              {{ teamCapacityLoading ? '保存中...' : '保存 Team 容量设置' }}
             </Button>
           </div>
         </CardContent>

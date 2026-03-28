@@ -179,7 +179,7 @@ export const releaseOpenAccountsOrderCode = (db, orderNo) => {
   return { released: 1 }
 }
 
-export const redeemOpenAccountsOrderCode = async (db, { orderNo, uid, email, accountEmail, capacityLimit = 5, orderType }) => {
+export const redeemOpenAccountsOrderCode = async (db, { orderNo, uid, email, accountEmail, capacityLimit = null, orderType }) => {
   try {
     return await withLocks(['purchase'], async () => {
       const codeInfo = ensureOpenAccountsOrderCode(db, { orderNo, accountEmail, email })

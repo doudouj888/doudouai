@@ -18,6 +18,7 @@ import { getUpstreamSettings } from '../utils/upstream-settings.js'
 import { getUpstreamProviderReadiness } from '../services/upstream-provider.js'
 import { getPublicBaseUrlSettings, resolvePublicBaseUrl } from '../utils/public-base-url.js'
 import { consumeRateLimit, getRequestClientIp } from '../utils/request-guard.js'
+import { getTeamCapacityLimitSync } from '../utils/team-capacity-settings.js'
 import {
   generateDownstreamPublicCode,
   getDownstreamOrderItemRefundState,
@@ -447,22 +448,28 @@ export const cleanupExpiredOrders = (db, { expireMinutes }) => {
 
 const getInternalAvailableCodeCount = (db, { channel } = {}) => {
   const resolvedChannel = String(channel || CODE_CHANNEL_COMMON).trim().toLowerCase() || CODE_CHANNEL_COMMON
+  const capacityLimit = getTeamCapacityLimitSync(db)
   const result = db.exec(
     `
 	      SELECT COUNT(*)
 	      FROM redemption_codes rc
-	      JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
+	      LEFT JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
 	      WHERE rc.is_redeemed = 0
 	        AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = ?
-	        AND rc.account_email IS NOT NULL
-        AND ga.is_open = 1
-        AND ga.user_count < 6
-        AND DATE(ga.created_at) = DATE('now', 'localtime')
+	        AND (
+            rc.account_email IS NULL
+            OR trim(rc.account_email) = ''
+            OR (
+              ga.is_open = 1
+              AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) < ?
+              AND DATE(ga.created_at) = DATE('now', 'localtime')
+            )
+          )
         AND COALESCE(rc.is_downstream_sold, 0) = 0
         AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
         AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
     `,
-    [resolvedChannel]
+    [resolvedChannel, capacityLimit]
   )
   return Number(result[0]?.values?.[0]?.[0] || 0)
 }
@@ -493,24 +500,30 @@ const getAvailableCodeCount = (db, { channel, channelConfig } = {}) => (
 
 const reserveInternalCode = (db, { orderNo, email, channel } = {}) => {
   const resolvedChannel = String(channel || CODE_CHANNEL_COMMON).trim().toLowerCase() || CODE_CHANNEL_COMMON
+  const capacityLimit = getTeamCapacityLimitSync(db)
   const row = db.exec(
     `
 	      SELECT rc.id, rc.code, rc.account_email
 	      FROM redemption_codes rc
-	      JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
+	      LEFT JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
 	      WHERE rc.is_redeemed = 0
 	        AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = ?
-	        AND rc.account_email IS NOT NULL
-        AND ga.is_open = 1
-        AND ga.user_count < 6
-        AND DATE(ga.created_at) = DATE('now', 'localtime')
+	        AND (
+            rc.account_email IS NULL
+            OR trim(rc.account_email) = ''
+            OR (
+              ga.is_open = 1
+              AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) < ?
+              AND DATE(ga.created_at) = DATE('now', 'localtime')
+            )
+          )
         AND COALESCE(rc.is_downstream_sold, 0) = 0
         AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
         AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
       ORDER BY rc.created_at ASC
       LIMIT 1
     `,
-    [resolvedChannel]
+    [resolvedChannel, capacityLimit]
   )[0]?.values?.[0]
 
   if (!row) return null

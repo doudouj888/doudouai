@@ -10,6 +10,7 @@ import {
 import { redeemOpenAccountsOrderCode } from './open-accounts-redemption.js'
 import { sendAdminAlertEmail } from './email-service.js'
 import { getFeatureFlags, isFeatureEnabled } from '../utils/feature-flags.js'
+import { getTeamCapacitySettings } from '../utils/team-capacity-settings.js'
 
 const LABEL = '[CreditOrderActionSweeper]'
 
@@ -308,8 +309,8 @@ const fulfillOpenAccountsBoardOrder = async (db, row) => {
     const invites = await fetchAccountInvites(targetAccountId, { inviteListParams: { offset: 0, limit: 25, query: email } })
     const isInvited = (invites.items || []).some(item => normalizeEmail(item.email_address) === email)
 
-    const baseCapacity = 5
-    const redeemCapacity = isMember || isInvited ? 6 : baseCapacity
+    const { teamCapacityLimit: baseCapacity } = await getTeamCapacitySettings(db)
+    const redeemCapacity = isMember || isInvited ? baseCapacity + 1 : baseCapacity
     const redeemOutcome = await redeemOpenAccountsOrderCode(db, {
       orderNo,
       uid,
