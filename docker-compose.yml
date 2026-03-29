@@ -1,36 +1,56 @@
 version: '3.8'
 
 services:
-  app:
-    # image: ghcr.io/kylsky/chatgpt-team-helper:latest
-    # 或使用本地构建: image: auto-gpt-team:latest
-    image: auto-gpt-team:latest
-    container_name: auto-gpt-team
-    ports:
-      - "5173:5173" # 前端 Web 端口（API 通过 nginx 代理，无需暴露 3000）
-    volumes:
-      # 持久化数据库文件
-      - ./data:/app/backend/db
-    env_file:
-      - ./backend/.env
+  # 1. 数据库 (存卡密和记录)
+  db:
+    image: postgres:15-alpine
+    restart: always
     environment:
-      TZ: ${TZ:-Asia/Shanghai}
-      NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_PATH: ${DATABASE_PATH:-/app/backend/db/database.sqlite}
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173/" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gptdb
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
-# 可选：定义网络
-networks:
-  default:
-    driver: bridge
+  # 2. 消息队列 (缓冲任务)
+  redis:
+    image: redis:alpine
+    restart: always
 
-# 可选：定义卷
+  # 3. 核心后端 (API + 网页)
+  app:
+    image: python:3.10-slim
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./app_code:/app
+    command: >
+      sh -c "pip install fastapi uvicorn sqlalchemy psycopg2-binary redis celery jinja2 &&
+             uvicorn main:app --host 0.0.0.0 --port 80"
+    ports:
+      - "80:80"
+    depends_on:
+      - db
+      - redis
+
+  # 4. 邀请机器人 (Worker)
+  worker:
+    image: python:3.10-slim
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./app_code:/app
+    # 安装 Playwright 和依赖
+    command: >
+      sh -c "apt-get update && apt-get install -y wget gnupg &&
+             pip install playwright celery redis sqlalchemy psycopg2-binary &&
+             playwright install --with-deps chromium &&
+             celery -A worker.celery_app worker --loglevel=info --concurrency=1"
+    depends_on:
+      - db
+      - redis
+    # 给浏览器足够的共享内存
+    shm_size: '2gb'
+
 volumes:
-  data:
-    driver: local
+  db_data:

@@ -1,0 +1,7 @@
+# Optional outbound proxy for ChatGPT API requests.
+# Examples:
+# CHATGPT_API_PROXY=http://host:port
+# CHATGPT_API_PROXY=http://username:password@host:port
+# CHATGPT_API_PROXY=socks5://host:port
+
+CHATGPT_API_PROXY=

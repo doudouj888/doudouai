@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>계정 충전</title>
+  <meta name="description" content="카드키 확인 후 계정을 연결하고 충전을 완료하세요." />
+  <link rel="stylesheet" href="/ko/assets/style.css?v=20260328a" />
+</head>
+<body>
+  <div class="charge-system">
+    <header class="page-header">
+      <div class="page-header-content">
+        <h1 class="page-title">계정 충전</h1>
+        <p class="page-subtitle">아래 순서대로 진행해 주세요.</p>
+        <div class="header-actions">
+          <a class="header-btn cdk-btn" href="/ko/cdk/">카드키 조회</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <section class="content-card">
+        <div class="embedded-progress">
+          <div class="progress-timeline">
+            <div class="timeline-item active" data-step-card="1">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">1</span></div>
+                <div class="connector-line"></div>
+              </div>
+              <div class="timeline-label"><span class="label-text">카드키 확인</span></div>
+            </div>
+            <div class="timeline-item" data-step-card="2">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">2</span></div>
+                <div class="connector-line"></div>
+              </div>
+              <div class="timeline-label"><span class="label-text">계정 연결</span></div>
+            </div>
+            <div class="timeline-item" data-step-card="3">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">3</span></div>
+              </div>
+              <div class="timeline-label"><span class="label-text">업그레이드 완료</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-content">
+          <div class="feedback-banner warning" id="statusCard">
+            <div class="feedback-head">
+              <span class="feedback-label">현재 상태</span>
+              <span class="masked-code" id="maskedCdk">미확인</span>
+            </div>
+            <p class="feedback-text" id="statusText">카드키를 입력하고 확인을 시작해 주세요.</p>
+          </div>
+
+          <section class="step-panel is-active" id="step1Panel">
+            <div class="form-section">
+              <div class="input-wrapper">
+                <label class="input-label" for="cdkInput">교환 코드 <span class="required-mark">*</span></label>
+                <input id="cdkInput" class="modern-input" type="text" placeholder="구매한 카드키를 입력하세요" autocomplete="off" />
+              </div>
+              <button class="primary-button" id="verifyButton" type="button">확인 시작</button>
+            </div>
+          </section>
+
+          <section class="step-panel" id="step2Panel">
+            <div class="step-header">
+              <button class="back-button" id="backToStep1Button" type="button" aria-label="이전 단계로 돌아가기">←</button>
+              <div class="header-text">
+                <h2>계정 연결</h2>
+                <p class="subtitle">검증이 완료되면 계정 정보를 가져와 붙여넣어 주세요.</p>
+              </div>
+            </div>
+
+            <div class="info-banner">
+              <span class="banner-icon">TIP</span>
+              <span class="banner-text">계정 정보를 가져오기 전에 계정을 개인 공간으로 전환해 주세요. 팀 공간에 있으면 실패할 수 있습니다.</span>
+            </div>
+
+            <div class="link-row">
+              <a class="link-button" href="https://chatgpt.com/api/auth/session" target="_blank" rel="noopener noreferrer">계정 정보 가져오기</a>
+            </div>
+
+            <div class="input-wrapper">
+              <textarea id="accountInput" class="modern-textarea" rows="7" placeholder="여기에 계정 정보를 붙여넣으세요..."></textarea>
+            </div>
+
+            <div class="success-box" id="recognizedBox" hidden>
+              <span class="success-label">인식된 계정</span>
+              <span class="success-value" id="recognizedAccount">대기 중</span>
+            </div>
+
+            <button class="primary-button" id="parseButton" type="button">확인 후 계속</button>
+          </section>
+
+          <section class="step-panel" id="step3Panel">
+            <div class="step-header">
+              <button class="back-button" id="backToStep2Button" type="button" aria-label="이전 단계로 돌아가기">←</button>
+              <div class="header-text">
+                <h2>충전 확인</h2>
+                <p class="subtitle">계정이 맞는지 확인한 뒤 충전을 시작하세요.</p>
+              </div>
+            </div>
+
+            <div class="status-card ready-card" id="chargeStateCard">
+              <div class="status-icon pulse" id="chargeStateIcon">✓</div>
+              <h3 class="status-title" id="chargeStateTitle">준비 완료</h3>
+              <p class="status-text" id="chargeStateText">인식된 계정이 맞으면 충전을 시작할 수 있습니다.</p>
+            </div>
+
+            <div class="account-card">
+              <span>현재 인식된 계정</span>
+              <strong id="recognizedAccountFinal">대기 중</strong>
+            </div>
+
+            <button class="primary-button charge-action" id="chargeButton" type="button">충전 시작</button>
+          </section>
+
+          <section class="success-panel" id="successPanel" hidden>
+            <div class="status-card success-card-state">
+              <div class="status-icon bounce">✓</div>
+              <h3 class="status-title success-text">충전 완료</h3>
+              <p class="status-text" id="successText">충전 요청이 정상적으로 접수되었습니다.</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/ko/assets/app.js?v=20260328a"></script>
+</body>
+</html>

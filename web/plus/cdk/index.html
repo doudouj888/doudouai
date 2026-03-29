@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title id="docTitle" data-i18n="doc_title">卡密查询</title>
+  <meta id="docDescription" name="description" data-i18n-content="doc_description" content="支持批量查询卡密状态。" />
+  <link rel="stylesheet" href="/plus/assets/style.css?v=20260327e" />
+</head>
+<body data-page="query">
+  <div class="query-page">
+    <header class="page-header">
+      <div class="page-header-content">
+        <h1 class="page-title" data-i18n="page_title">卡密查询</h1>
+        <p class="page-subtitle" data-i18n="page_subtitle">支持一行一个卡密，批量查询状态</p>
+        <div class="header-actions">
+          <a class="header-btn back-home-btn" href="/plus/" data-i18n="back_home">账号充值</a>
+          <a class="header-btn tutorial-btn" href="/jc/" target="_blank" rel="noopener noreferrer" data-i18n="tutorial">使用教程</a>
+          <button class="header-btn lang-btn" type="button" data-lang-toggle>한국어</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="query-container">
+      <section class="query-card">
+        <div class="query-input-panel">
+          <label class="input-label" for="queryInput" data-i18n="query_label">请输入卡密（支持多个，每行一个）</label>
+          <textarea id="queryInput" class="modern-textarea query-textarea" data-i18n-placeholder="query_placeholder" placeholder="请输入卡密，每行一个"></textarea>
+          <div class="button-row query-actions">
+            <button class="primary-button" id="queryButton" type="button" data-i18n="query_button">开始查询</button>
+            <button class="secondary-button" id="fillDemoButton" type="button" data-i18n="fill_demo">填充示例</button>
+          </div>
+        </div>
+
+        <div class="query-result-panel">
+          <div class="result-stats">
+            <div class="result-stat">
+              <span data-i18n="stat_total">总数量</span>
+              <strong id="statTotal">0</strong>
+            </div>
+            <div class="result-stat">
+              <span data-i18n="stat_unused">未使用</span>
+              <strong id="statUnused">0</strong>
+            </div>
+            <div class="result-stat">
+              <span data-i18n="stat_used">已使用</span>
+              <strong id="statUsed">0</strong>
+            </div>
+            <div class="result-stat">
+              <span data-i18n="stat_invalid">无效</span>
+              <strong id="statInvalid">0</strong>
+            </div>
+          </div>
+
+          <div class="copy-row">
+            <button class="mini-button" data-copy-type="all" type="button" data-i18n="copy_all">复制全部</button>
+            <button class="mini-button" data-copy-type="not_used" type="button" data-i18n="copy_unused">复制未使用</button>
+            <button class="mini-button" data-copy-type="used" type="button" data-i18n="copy_used">复制已使用</button>
+            <button class="mini-button" data-copy-type="invalid" type="button" data-i18n="copy_invalid">复制无效</button>
+          </div>
+
+          <div class="empty-state" id="emptyState" data-i18n="empty_initial">还没有查询结果。</div>
+          <div class="table-shell" id="tableWrap" hidden>
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="table_index">#</th>
+                  <th data-i18n="table_cdk">卡密</th>
+                  <th data-i18n="table_status">状态</th>
+                  <th data-i18n="table_used_at">使用时间</th>
+                  <th data-i18n="table_account">使用账号</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/plus/assets/i18n.js?v=20260327e"></script>
+  <script src="/plus/assets/query.js?v=20260327e"></script>
+</body>
+</html>

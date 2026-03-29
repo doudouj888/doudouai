@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title id="docTitle" data-i18n="doc_title">账号充值</title>
+  <meta id="docDescription" name="description" data-i18n-content="doc_description" content="请按照以下步骤完成充值。" />
+  <link rel="stylesheet" href="/plus/assets/style.css?v=20260327e" />
+</head>
+<body data-page="recharge">
+  <div class="charge-system">
+    <header class="page-header">
+      <div class="page-header-content">
+        <h1 class="page-title" data-i18n="page_title">账号充值</h1>
+        <p class="page-subtitle">
+          <span data-i18n="page_subtitle">请按照以下步骤完成充值</span>
+          <a class="inline-helper-link" href="/jc/" target="_blank" rel="noopener noreferrer" data-i18n="view_tutorial">如有疑问可查看教程</a>
+        </p>
+        <div class="header-actions">
+          <a class="header-btn cdk-btn" href="/plus/cdk/" data-i18n="cdk_query">卡密查询</a>
+          <button class="header-btn lang-btn" type="button" data-lang-toggle>한국어</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-container">
+      <section class="content-card">
+        <div class="embedded-progress">
+          <div class="progress-timeline">
+            <div class="timeline-item active" data-step-card="1">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">1</span></div>
+                <div class="connector-line"></div>
+              </div>
+              <div class="timeline-label"><span class="label-text" data-i18n="step_1">卡密校验</span></div>
+            </div>
+            <div class="timeline-item" data-step-card="2">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">2</span></div>
+                <div class="connector-line"></div>
+              </div>
+              <div class="timeline-label"><span class="label-text" data-i18n="step_2">账户绑定</span></div>
+            </div>
+            <div class="timeline-item" data-step-card="3">
+              <div class="timeline-marker">
+                <div class="marker-circle"><span class="step-number">3</span></div>
+              </div>
+              <div class="timeline-label"><span class="label-text" data-i18n="step_3">完成升级</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-content">
+          <div class="feedback-banner warning" id="statusCard">
+            <div class="feedback-head">
+              <span class="feedback-label" data-i18n="current_status">当前状态</span>
+              <span class="masked-code" id="maskedCdk" data-i18n="masked_unverified">未验证</span>
+            </div>
+            <p class="feedback-text" id="statusText" data-i18n="status_waiting">等待输入卡密并开始验证。</p>
+          </div>
+
+          <section class="step-panel is-active" id="step1Panel">
+            <div class="form-section">
+              <div class="input-wrapper">
+                <label class="input-label" for="cdkInput"><span data-i18n="cdk_label">内部兑换码</span> <span class="required-mark">*</span></label>
+                <input id="cdkInput" class="modern-input" type="text" data-i18n-placeholder="cdk_placeholder" placeholder="请输入兑换码" autocomplete="off" />
+              </div>
+              <button class="primary-button" id="verifyButton" type="button" data-i18n="verify_button">开始验证</button>
+            </div>
+          </section>
+
+          <section class="step-panel" id="step2Panel">
+            <div class="step-header">
+              <button class="back-button" id="backToStep1Button" type="button" data-i18n-aria-label="back_aria" aria-label="返回上一步">←</button>
+              <div class="header-text">
+                <h2 data-i18n="bind_title">账户绑定</h2>
+                <p class="subtitle" data-i18n="bind_subtitle">验证通过后，请获取并粘贴完整的账号信息。</p>
+              </div>
+            </div>
+
+            <div class="info-banner">
+              <span class="banner-icon" data-i18n="banner_tip">提示</span>
+              <span class="banner-text" data-i18n="banner_text">获取之前，请先切换到个人空间，不要在团队里。</span>
+            </div>
+
+            <div class="link-row">
+              <a class="link-button" href="https://chatgpt.com/api/auth/session" target="_blank" rel="noopener noreferrer" data-i18n="get_account">点击获取账号</a>
+              <a class="secondary-link" href="/jc/" target="_blank" rel="noopener noreferrer" data-i18n="full_tutorial">查看完整教程</a>
+            </div>
+
+            <div class="input-wrapper">
+              <textarea id="accountInput" class="modern-textarea" rows="7" data-i18n-placeholder="account_placeholder" placeholder="在此处粘贴您的账号信息..."></textarea>
+            </div>
+
+            <div class="success-box" id="recognizedBox" hidden>
+              <span class="success-label" data-i18n="recognized_label">已识别账号</span>
+              <span class="success-value" id="recognizedAccount" data-i18n="recognized_waiting">等待识别</span>
+            </div>
+
+            <button class="primary-button" id="parseButton" type="button" data-i18n="parse_button">确认并继续</button>
+          </section>
+
+          <section class="step-panel" id="step3Panel">
+            <div class="step-header">
+              <button class="back-button" id="backToStep2Button" type="button" data-i18n-aria-label="back_aria" aria-label="返回上一步">←</button>
+              <div class="header-text">
+                <h2 data-i18n="confirm_title">确认充值</h2>
+                <p class="subtitle" data-i18n="confirm_subtitle">确认信息无误后，再提交充值请求。</p>
+              </div>
+            </div>
+
+            <div class="status-card ready-card" id="chargeStateCard">
+              <div class="status-icon pulse" id="chargeStateIcon">✓</div>
+              <h3 class="status-title" id="chargeStateTitle" data-i18n="charge_ready_title">准备就绪</h3>
+              <p class="status-text" id="chargeStateText" data-i18n="charge_ready_text">确认识别到的账号正确后，再开始充值。</p>
+            </div>
+
+            <div class="account-card">
+              <span data-i18n="current_account">当前识别账号</span>
+              <strong id="recognizedAccountFinal" data-i18n="recognized_waiting">等待识别</strong>
+            </div>
+
+            <button class="primary-button charge-action" id="chargeButton" type="button" data-i18n="charge_button">开始充值</button>
+          </section>
+
+          <section class="success-panel" id="successPanel" hidden>
+            <div class="status-card success-card-state">
+              <div class="status-icon bounce">✓</div>
+              <h3 class="status-title success-text" data-i18n="success_title">充值成功</h3>
+              <p class="status-text" id="successText" data-i18n="success_text_default">充值请求已提交成功。</p>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/plus/assets/i18n.js?v=20260327e"></script>
+  <script src="/plus/assets/app.js?v=20260327e"></script>
+</body>
+</html>
