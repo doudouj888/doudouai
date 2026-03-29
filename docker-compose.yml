@@ -1,56 +1,12 @@
-version: '3.8'
-
 services:
-  # 1. 数据库 (存卡密和记录)
-  db:
-    image: postgres:15-alpine
+  app:
+    image: npckf/team-manage:latest
+    container_name: team-manage-app
+    ports:
+      - "${APP_PORT:-8008}:${APP_PORT:-8008}"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: gptdb
-    volumes:
-      - db_data:/var/lib/postgresql/data
-
-  # 2. 消息队列 (缓冲任务)
-  redis:
-    image: redis:alpine
-    restart: always
-
-  # 3. 核心后端 (API + 网页)
-  app:
-    image: python:3.10-slim
-    restart: always
-    working_dir: /app
-    volumes:
-      - ./app_code:/app
-    command: >
-      sh -c "pip install fastapi uvicorn sqlalchemy psycopg2-binary redis celery jinja2 &&
-             uvicorn main:app --host 0.0.0.0 --port 80"
-    ports:
-      - "80:80"
-    depends_on:
-      - db
-      - redis
-
-  # 4. 邀请机器人 (Worker)
-  worker:
-    image: python:3.10-slim
-    restart: always
-    working_dir: /app
-    volumes:
-      - ./app_code:/app
-    # 安装 Playwright 和依赖
-    command: >
-      sh -c "apt-get update && apt-get install -y wget gnupg &&
-             pip install playwright celery redis sqlalchemy psycopg2-binary &&
-             playwright install --with-deps chromium &&
-             celery -A worker.celery_app worker --loglevel=info --concurrency=1"
-    depends_on:
-      - db
-      - redis
-    # 给浏览器足够的共享内存
-    shm_size: '2gb'
-
-volumes:
-  db_data:
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/team_manage.db

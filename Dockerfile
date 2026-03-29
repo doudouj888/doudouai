@@ -1,45 +1,40 @@
-FROM python:3.10-slim-bookworm
+# 使用轻量级的 Python 基础镜像
+FROM python:3.10-slim
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+# 设置工作目录
+WORKDIR /app
 
-WORKDIR /opt/gpt_pro
+# 设置环境变量
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
+# 安装系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash \
-    ca-certificates \
-    curl \
-    xvfb \
-    chromium \
-    fonts-liberation \
-    fonts-noto-color-emoji \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnss3 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxkbcommon0 \
-    libxrandr2 \
-    && ln -sf /usr/bin/chromium /usr/bin/google-chrome \
-    && ln -sf /usr/bin/chromium /usr/bin/google-chrome-stable \
+    gcc \
+    libsqlite3-dev \
+    wget \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+# 安装 Xray-core (支持 SS/VMess/Trojan/VLESS 等所有协议)
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then XRAY_ARCH="64"; \
+    elif [ "$ARCH" = "arm64" ]; then XRAY_ARCH="arm64-v8a"; \
+    else XRAY_ARCH="64"; fi && \
+    wget -q "https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-${XRAY_ARCH}.zip" -O /tmp/xray.zip && \
+    unzip -o /tmp/xray.zip -d /usr/local/bin/ xray && \
+    chmod +x /usr/local/bin/xray && \
+    rm -f /tmp/xray.zip
 
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && python -m playwright install chromium
+# 复制依赖文件并安装 Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
+# 复制项目代码
 COPY . .
 
-RUN chmod +x start_worker.sh monitor_worker.sh
+# 暴露应用端口
+EXPOSE 8008
 
-EXPOSE 8501
-
-CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=${PORT:-8501}"]
+# 运行应用
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-8008}"]
