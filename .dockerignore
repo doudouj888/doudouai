@@ -1,0 +1,17 @@
+.git
+.github
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.lock
+cursor.txt
+history.txt
+invite_log.txt
+invalid_email_log.txt
+queue.txt
+queue_failed_manual.txt
+redeem_log.txt
+worker_output.log
+monitor_worker.log

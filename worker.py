@@ -1227,7 +1227,7 @@ def run_one_session_browser_ui(target_uuid, email_batch, cookie_data, mode='cook
         options.add_argument("--disable-background-networking")
         options.add_argument("--blink-settings=imagesEnabled=false")
 
-        driver = uc.Chrome(options=options, version_main=142)
+        driver = uc.Chrome(options=options)
         driver.set_page_load_timeout(60)
 
         clist = parse_cookie_list(cookie_data)
@@ -1331,7 +1331,7 @@ def run_one_session_browser(target_uuid, email_batch, cookie_data, mode='cookie'
         options.add_argument("--disable-background-networking")
         options.add_argument("--blink-settings=imagesEnabled=false")
 
-        driver = uc.Chrome(options=options, version_main=142)
+        driver = uc.Chrome(options=options)
         driver.set_page_load_timeout(60)
 
         driver.get("https://chatgpt.com/404")

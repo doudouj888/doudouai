@@ -4,3 +4,7 @@ pandas
 flask
 playwright
 selenium
+undetected-chromedriver
+pyvirtualdisplay
+cloudscraper
+curl-cffi
