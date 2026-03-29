@@ -15,10 +15,38 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const INVITE_REGISTER_REWARD_POINTS = 2
 
 const normalizeEmail = (value) => String(value ?? '').trim().toLowerCase()
+const BCRYPT_HASH_PATTERN = /^\$2[aby]\$\d{2}\$/
 
 const sha256 = (value) => crypto.createHash('sha256').update(String(value ?? '')).digest('hex')
 
 const randomVerificationCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0')
+
+const verifyPasswordWithFallback = (inputPassword, storedPassword) => {
+  const normalizedInput = String(inputPassword ?? '')
+  const normalizedStored = String(storedPassword ?? '')
+
+  if (!normalizedStored) {
+    return { ok: false, shouldUpgradeHash: false }
+  }
+
+  if (BCRYPT_HASH_PATTERN.test(normalizedStored)) {
+    try {
+      return {
+        ok: bcrypt.compareSync(normalizedInput, normalizedStored),
+        shouldUpgradeHash: false
+      }
+    } catch (error) {
+      console.warn('Password hash compare failed:', error?.message || error)
+      return { ok: false, shouldUpgradeHash: false }
+    }
+  }
+
+  const fallbackMatched = normalizedInput === normalizedStored || sha256(normalizedInput) === normalizedStored
+  return {
+    ok: fallbackMatched,
+    shouldUpgradeHash: fallbackMatched
+  }
+}
 
 const sendRegisterCode = async (db, email) => {
   const recent = db.exec(
@@ -66,9 +94,15 @@ router.post('/login', async (req, res) => {
 
     const db = await getDatabase()
     const identifier = String(username).trim()
+    const normalizedIdentifier = identifier.toLowerCase()
     const result = db.exec(
-      'SELECT id, username, password, email, COALESCE(invite_enabled, 1) FROM users WHERE username = ? OR email = ? LIMIT 1',
-      [identifier, identifier]
+      `
+        SELECT id, username, password, email, COALESCE(invite_enabled, 1)
+        FROM users
+        WHERE lower(trim(username)) = ? OR lower(trim(email)) = ?
+        LIMIT 1
+      `,
+      [normalizedIdentifier, normalizedIdentifier]
     )
 
     if (result.length === 0 || result[0].values.length === 0) {
@@ -83,10 +117,17 @@ router.post('/login', async (req, res) => {
       inviteEnabled: Number(result[0].values[0][4] ?? 1) !== 0,
     }
 
-    const isPasswordValid = bcrypt.compareSync(password, user.password)
+    const passwordCheck = verifyPasswordWithFallback(password, user.password)
+    const isPasswordValid = passwordCheck.ok
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    if (passwordCheck.shouldUpgradeHash) {
+      const upgradedHash = bcrypt.hashSync(String(password), 10)
+      db.run('UPDATE users SET password = ? WHERE id = ?', [upgradedHash, user.id])
+      saveDatabase()
     }
 
     const token = jwt.sign(

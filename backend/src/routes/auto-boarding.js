@@ -313,66 +313,19 @@ router.post('/', apiKeyAuth, async (req, res) => {
       // 可用名额 = 总容量(5) - 当前人数(1) - 所有兑换码数(0) = 4
       saveDatabase()
 
-      const { account: responseAccount, syncResult, removedUsers } = await syncAccountAndCleanup(account)
+      const { account: createdResponseAccount, syncResult: createdSyncResult, removedUsers: createdRemovedUsers } = await syncAccountAndCleanup(account)
 
       return res.status(201).json({
         success: true,
         message: '自动上车成功！账号已添加到系统',
         action: 'created',
-        account: responseAccount,
+        account: createdResponseAccount,
         generatedCodes: [],
         codesMessage: '已取消自动生成兑换码，请前往兑换码管理手动批量预生成',
-        syncResult,
-        removedUsers
+        syncResult: createdSyncResult,
+        removedUsers: createdRemovedUsers
       })
 
-      const totalCapacity = 5
-      const currentUserCount = 1  // 刚创建的账号默认人数为1
-      const allCodesCount = 0  // 新账号还没有任何兑换码
-      const availableSlots = totalCapacity - currentUserCount - allCodesCount
-      const codesToGenerate = Math.min(4, availableSlots)  // 生成4个兑换码（正好填满可用名额）
-
-      const generatedCodes = []
-      for (let i = 0; i < codesToGenerate; i++) {
-        let code = generateRedemptionCode()
-        let attempts = 0
-        let success = false
-
-        // 尝试生成唯一的兑换码（最多重试4次）
-        while (attempts < 4 && !success) {
-          try {
-	            db.run(
-	              `INSERT INTO redemption_codes (code, account_email, created_at, updated_at) VALUES (?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))`,
-	              [code, normalizedEmail]
-	            )
-	            generatedCodes.push(code)
-	            success = true
-	          } catch (err) {
-            if (err.message.includes('UNIQUE')) {
-              // 如果重复，重新生成
-              code = generateRedemptionCode()
-              attempts++
-            } else {
-              throw err
-            }
-          }
-        }
-      }
-
-      saveDatabase()
-
-      const { account: responseAccount, syncResult, removedUsers } = await syncAccountAndCleanup(account)
-
-      return res.status(201).json({
-        success: true,
-        message: '自动上车成功！账号已添加到系统',
-        action: 'created',
-        account: responseAccount,
-        generatedCodes,
-        codesMessage: `已自动生成${generatedCodes.length}个兑换码`,
-        syncResult,
-        removedUsers
-      })
     }
   } catch (error) {
     console.error('Auto boarding error:', error)

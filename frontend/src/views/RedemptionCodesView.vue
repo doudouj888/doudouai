@@ -37,9 +37,10 @@ const accounts = ref<GptAccount[]>([])
 const loading = ref(true)
 const error = ref('')
 const teleportReady = ref(false)
+const AUTO_ASSIGN_ACCOUNT_VALUE = '__auto_assign__'
 const showBatchDialog = ref(false)
 const batchCount = ref(10)
-const selectedAccountEmail = ref('')
+const selectedAccountEmail = ref(AUTO_ASSIGN_ACCOUNT_VALUE)
 const selectedBatchChannel = ref('common')
 const creating = ref(false)
 const selectedCodes = ref<number[]>([])
@@ -541,7 +542,7 @@ const truncateText = (text?: string | null, maxLength: number = 20) => {
 
 const openBatchDialog = () => {
   batchCount.value = 10
-  selectedAccountEmail.value = accounts.value.length > 0 ? (accounts.value[0]?.email || '') : ''
+  selectedAccountEmail.value = AUTO_ASSIGN_ACCOUNT_VALUE
   selectedBatchChannel.value = batchChannelOptions.value[0]?.value || 'common'
   showBatchDialog.value = true
 }
@@ -549,7 +550,7 @@ const openBatchDialog = () => {
 const closeBatchDialog = () => {
   showBatchDialog.value = false
   batchCount.value = 10
-  selectedAccountEmail.value = ''
+  selectedAccountEmail.value = AUTO_ASSIGN_ACCOUNT_VALUE
   selectedBatchChannel.value = batchChannelOptions.value[0]?.value || 'common'
 }
 
@@ -608,10 +609,6 @@ const handleBatchCreate = async () => {
     return
   }
 
-  if (!selectedAccountEmail.value) {
-    error.value = '请选择所属账号'
-    return
-  }
   if (!selectedBatchChannel.value) {
     error.value = '请选择渠道'
     return
@@ -621,7 +618,11 @@ const handleBatchCreate = async () => {
   error.value = ''
 
   try {
-    const result = await redemptionCodeService.batchCreate(batchCount.value, selectedAccountEmail.value, selectedBatchChannel.value)
+    const result = await redemptionCodeService.batchCreate(
+      batchCount.value,
+      selectedAccountEmail.value === AUTO_ASSIGN_ACCOUNT_VALUE ? undefined : selectedAccountEmail.value,
+      selectedBatchChannel.value
+    )
     await loadCodes()
     closeBatchDialog()
 
@@ -1775,13 +1776,19 @@ const handleInviteSubmit = async () => {
                   <SelectValue placeholder="选择账号" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem :value="AUTO_ASSIGN_ACCOUNT_VALUE">
+                    自动分配（预生成码池）
+                  </SelectItem>
                   <SelectItem v-for="account in accounts" :key="account.id" :value="account.email">
                     {{ account.email }} (当前{{ account.userCount }}人)
                   </SelectItem>
                 </SelectContent>
               </Select>
               <p class="text-xs text-gray-400">
-                可创建数量 = 6 - 当前人数 - 未使用的兑换码数。
+                绑定母号时，会按“当前人数 + 未使用兑换码数 + 本次生成数 ≤ Team 容量”自动限制数量。
+              </p>
+              <p class="text-xs text-blue-500">
+                留空会生成预售兑换码；用户兑换时再自动匹配当前有空位的母号。
               </p>
            </div>
 

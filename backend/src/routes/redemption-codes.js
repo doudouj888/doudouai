@@ -1455,89 +1455,89 @@ router.post('/:id/upstream-check', authenticateToken, requireMenu('redemption_co
 // 批量创建兑换码
 router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async (req, res) => {
   try {
-    const { count, accountEmail, channel } = req.body
+    const requestedCount = Number.parseInt(String(req.body?.count ?? ''), 10)
+    const normalizedAccountEmail = String(req.body?.accountEmail || '').trim().toLowerCase()
+    const normalizedChannel = normalizeChannel(req.body?.channel, 'common')
 
-    if (!count || count < 1 || count > 1000) {
-      return res.status(400).json({ error: '数量必须在 1-1000 之间' })
-    }
-
-    // 必须指定账号
-    if (false && !accountEmail) {
-      return res.status(400).json({ error: '必须指定所属账号邮箱' })
+    if (!Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 1000) {
+      return res.status(400).json({ error: '数量必须在 1 到 1000 之间' })
     }
 
     const db = await getDatabase()
     const teamCapacityLimit = getTeamCapacityLimitSync(db)
     const { byKey: channelsByKey } = await getChannels(db)
-    const normalizedAccountEmail = String(accountEmail || '').trim().toLowerCase()
     const shouldBindAccount = Boolean(normalizedAccountEmail)
-    let currentUserCount = 0
-    let unusedCodesCount = 0
-    let availableSlots = null
-    let actualCount = count
-
-    // 检查账号是否存在并获取当前人数
-    if (shouldBindAccount) {
-      const accountResult = db.exec(`
-      SELECT id, email, user_count FROM gpt_accounts WHERE lower(trim(email)) = ?
-    `, [normalizedAccountEmail])
-
-    if (accountResult.length === 0 || accountResult[0].values.length === 0) {
-      return res.status(404).json({ error: '指定的账号不存在' })
-    }
-
-    const accountRow = accountResult[0].values[0]
-    currentUserCount = Number(accountRow[2] || 0)
-
-    // 如果账号已满员（5人），不能创建兑换码
-    if (currentUserCount >= teamCapacityLimit) {
-      return res.status(400).json({
-        error: '该账号已满员（5人），无法创建兑换码',
-        currentUserCount: currentUserCount
-      })
-    }
-
-    // 获取该账号未使用的兑换码数量
-    const unusedCodesResult = db.exec(`
-      SELECT COUNT(*) as count FROM redemption_codes
-      WHERE lower(trim(account_email)) = ? AND is_redeemed = 0
-    `, [normalizedAccountEmail])
-
-    unusedCodesCount = Number(unusedCodesResult[0]?.values[0]?.[0] || 0)
-
-    // 计算实际可以生成的数量
-    // 可创建数量 = 总容量(5) - 当前人数 - 未使用的兑换码数
-    availableSlots = teamCapacityLimit - currentUserCount - unusedCodesCount
-
-    if (availableSlots <= 0) {
-      return res.status(400).json({
-        error: '该账号已无可用名额（当前人数 + 未使用兑换码数已达上限）',
-        currentUserCount: currentUserCount,
-        unusedCodesCount: unusedCodesCount,
-        allCodesCount: unusedCodesCount, // 兼容旧前端字段
-        availableSlots: 0
-      })
-    }
-
-    actualCount = Math.min(count, availableSlots)
-
-    // 如果请求数量超过可用名额，给出详细提示
-    if (count > availableSlots) {
-      console.log(`请求生成${count}个兑换码，但账号只有${availableSlots}个可用名额（当前${currentUserCount}人，已有${unusedCodesCount}个未使用兑换码），将只生成${actualCount}个`)
-    }
-
-    }
-
-    const normalizedChannel = normalizeChannel(channel, 'common')
     const channelConfig = channelsByKey.get(normalizedChannel) || null
+
     if (!channelConfig || !channelConfig.isActive) {
       return res.status(400).json({ error: '渠道不存在或已停用' })
     }
-    if (isExternalCardRedeemMode(channelConfig)) {
-      return res.status(400).json({ error: 'external-card 渠道请使用“导入外部卡密”功能补货' })
-    }
-    const resolvedChannelName = String(channelConfig.name || '').trim() || normalizedChannel
 
+    if (isExternalCardRedeemMode(channelConfig)) {
+      return res.status(400).json({ error: 'external-card 渠道请使用“导入外部卡密”功能补充' })
+    }
+
+    let currentUserCount = 0
+    let unusedCodesCount = 0
+    let availableSlots = null
+    let actualCount = requestedCount
+
+    if (shouldBindAccount) {
+      const accountResult = db.exec(
+        `
+          SELECT id, email, user_count
+          FROM gpt_accounts
+          WHERE lower(trim(email)) = ?
+        `,
+        [normalizedAccountEmail]
+      )
+
+      if (accountResult.length === 0 || accountResult[0].values.length === 0) {
+        return res.status(404).json({ error: '指定的母号不存在' })
+      }
+
+      const accountRow = accountResult[0].values[0]
+      currentUserCount = Number(accountRow[2] || 0)
+
+      if (currentUserCount >= teamCapacityLimit) {
+        return res.status(400).json({
+          error: '该母号当前已满员，无法继续预生成绑定兑换码',
+          currentUserCount
+        })
+      }
+
+      const unusedCodesResult = db.exec(
+        `
+          SELECT COUNT(*)
+          FROM redemption_codes
+          WHERE lower(trim(account_email)) = ? AND is_redeemed = 0
+        `,
+        [normalizedAccountEmail]
+      )
+
+      unusedCodesCount = Number(unusedCodesResult[0]?.values[0]?.[0] || 0)
+      availableSlots = teamCapacityLimit - currentUserCount - unusedCodesCount
+
+      if (availableSlots <= 0) {
+        return res.status(400).json({
+          error: '该母号当前没有可分配席位，请改用预售码池或更换母号',
+          currentUserCount,
+          unusedCodesCount,
+          allCodesCount: unusedCodesCount,
+          availableSlots: 0
+        })
+      }
+
+      actualCount = Math.min(requestedCount, availableSlots)
+
+      if (requestedCount > availableSlots) {
+        console.log(
+          `Requested ${requestedCount} bound redemption codes for ${normalizedAccountEmail}, only ${availableSlots} slots remain, creating ${actualCount}.`
+        )
+      }
+    }
+
+    const resolvedChannelName = String(channelConfig.name || '').trim() || normalizedChannel
     const createdCodes = []
     const failedCodes = []
 
@@ -1546,7 +1546,6 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
       let attempts = 0
       let success = false
 
-      // 尝试生成唯一的兑换码（最多重试4次）
       while (attempts < 4 && !success) {
         try {
           db.run(
@@ -1557,9 +1556,8 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
           success = true
         } catch (err) {
           if (err.message.includes('UNIQUE')) {
-            // 如果重复，重新生成
             code = generateRedemptionCode()
-            attempts++
+            attempts += 1
           } else {
             throw err
           }
@@ -1567,54 +1565,50 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
       }
 
       if (!success) {
-        failedCodes.push(`尝试${attempts}次后仍然重复`)
+        failedCodes.push(`尝试 ${attempts} 次后仍生成重复兑换码`)
       }
     }
 
     saveDatabase()
 
-    // 获取新创建的兑换码
-    const result = db.exec(`
-      SELECT id, code, is_redeemed, redeemed_at, redeemed_by,
-             account_email, channel, channel_name, created_at, updated_at,
-             reserved_for_uid, reserved_for_username, reserved_for_entry_id, reserved_at,
-             reserved_for_order_no, reserved_for_order_email, order_type, is_downstream_sold, downstream_sold_at,
-             fulfillment_mode, supplier_name, supplier_type, supplier_request_id,
-             supplier_status, supplier_response_code, supplier_response_message, supplier_redeemed_at
-      FROM redemption_codes
-      WHERE code IN (${createdCodes.map(() => '?').join(',')})
-      ORDER BY created_at DESC
-    `, createdCodes)
+    let codes = []
+    if (createdCodes.length > 0) {
+      const result = db.exec(
+        `
+          SELECT id, code, is_redeemed, redeemed_at, redeemed_by,
+                 account_email, channel, channel_name, created_at, updated_at,
+                 reserved_for_uid, reserved_for_username, reserved_for_entry_id, reserved_at,
+                 reserved_for_order_no, reserved_for_order_email, order_type, is_downstream_sold, downstream_sold_at,
+                 fulfillment_mode, supplier_name, supplier_type, supplier_request_id,
+                 supplier_status, supplier_response_code, supplier_response_message, supplier_redeemed_at
+          FROM redemption_codes
+          WHERE code IN (${createdCodes.map(() => '?').join(',')})
+          ORDER BY created_at DESC
+        `,
+        createdCodes
+      )
 
-    const codes = result[0]?.values.map(row => mapCodeRow(row, channelsByKey)) || []
+      codes = result[0]?.values.map(row => mapCodeRow(row, channelsByKey)) || []
+    }
 
     return res.status(201).json({
       message: shouldBindAccount
-        ? `鎴愬姛涓鸿处鍙?${normalizedAccountEmail} 鍒涘缓 ${createdCodes.length} 涓厬鎹㈢爜`
-        : `鎴愬姛鍒涘缓 ${createdCodes.length} 涓鐢熸垚鍏戞崲鐮?`,
+        ? `成功为母号 ${normalizedAccountEmail} 创建 ${createdCodes.length} 个绑定兑换码`
+        : `成功创建 ${createdCodes.length} 个预生成兑换码`,
       codes,
       failed: failedCodes.length,
       currentUserCount: shouldBindAccount ? currentUserCount : undefined,
       unusedCodesCount: shouldBindAccount ? unusedCodesCount + createdCodes.length : undefined,
       allCodesCount: shouldBindAccount ? unusedCodesCount + createdCodes.length : undefined,
-      availableSlots: shouldBindAccount && availableSlots !== null ? availableSlots - createdCodes.length : undefined,
-      info: shouldBindAccount && availableSlots !== null && count > availableSlots
-        ? `鐢变簬璐﹀彿鍙敤鍚嶉闄愬埗锛堝綋鍓?${currentUserCount}浜?+ ${unusedCodesCount}涓湭浣跨敤鍏戞崲鐮侊級锛屽彧鐢熸垚浜?${actualCount}涓厬鎹㈢爜`
+      availableSlots: shouldBindAccount && availableSlots !== null
+        ? Math.max(availableSlots - createdCodes.length, 0)
+        : undefined,
+      info: shouldBindAccount && availableSlots !== null && requestedCount > availableSlots
+        ? `受母号容量限制，本次仅创建 ${actualCount} 个兑换码（当前人数 ${currentUserCount}，未使用兑换码 ${unusedCodesCount}）`
         : undefined
     })
-
-    res.status(201).json({
-      message: `成功为账号 ${accountEmail} 创建 ${createdCodes.length} 个兑换码`,
-      codes,
-      failed: failedCodes.length,
-      currentUserCount: currentUserCount,
-      unusedCodesCount: unusedCodesCount + createdCodes.length,
-      allCodesCount: unusedCodesCount + createdCodes.length, // 兼容旧前端字段
-      availableSlots: availableSlots - createdCodes.length,
-      info: count > availableSlots ? `由于账号可用名额限制（当前${currentUserCount}人 + ${unusedCodesCount}个未使用兑换码），只生成了${actualCount}个兑换码` : undefined
-    })
   } catch (error) {
-    console.error('批量创建兑换码错误:', error)
+    console.error('Batch create redemption codes error:', error)
     res.status(500).json({ error: '内部服务器错误' })
   }
 })

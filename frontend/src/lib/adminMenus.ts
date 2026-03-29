@@ -38,6 +38,13 @@ type AdminMenuDraftNode = {
 }
 
 const DEFAULT_ICON = Settings
+const HIDDEN_ADMIN_MENU_KEYS = new Set([
+  'purchase_orders',
+  'xhs_orders',
+  'xianyu_orders',
+  'credit_orders',
+  'account_recovery',
+])
 
 const ICONS_BY_MENU_KEY: Record<string, any> = {
   user_info: User,
@@ -160,6 +167,9 @@ export const filterAdminMenuTreeByFeatureFlags = (tree: AdminMenuNode[], feature
   const filterNodes = (nodes: AdminMenuNode[]): AdminMenuNode[] => {
     return (nodes || [])
       .map((node) => {
+        if (HIDDEN_ADMIN_MENU_KEYS.has(node.key)) {
+          return null
+        }
         const featureKey = featureByMenuKey[node.key]
         if (featureKey && !enabled(featureKey)) {
           return null
