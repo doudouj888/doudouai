@@ -860,7 +860,7 @@ const exportCodes = async () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `鍏戞崲鐮乢${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `兑换码-${new Date().toISOString().split('T')[0]}.txt`
     a.click()
     URL.revokeObjectURL(url)
   } catch (err: any) {

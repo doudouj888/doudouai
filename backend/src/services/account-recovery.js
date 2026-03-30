@@ -136,7 +136,6 @@ export function selectRecoveryCode(
   db,
   {
     minExpireMs,
-    capacityLimit = 6,
     preferNonToday = true,
     preferLatestExpire = false,
     limit = 200,
@@ -245,4 +244,38 @@ export function selectRecoveryCode(
   })
 
   return pool[0] || null
+}
+
+export function countAvailableRecoveryCodes(
+  db,
+  {
+    codeCreatedWithinDays = 7,
+    channel = 'common'
+  } = {}
+) {
+  if (!db) return 0
+
+  const createdWithinDaysSafe = Math.min(365, Math.max(1, toInt(codeCreatedWithinDays, 7)))
+  const createdSinceOffsetDays = Math.max(0, createdWithinDaysSafe - 1)
+  const createdSinceModifier = `-${createdSinceOffsetDays} day`
+  const normalizedChannel = String(channel || 'common').trim().toLowerCase() || 'common'
+
+  const result = db.exec(
+    `
+      SELECT COUNT(*)
+      FROM redemption_codes rc
+      WHERE rc.is_redeemed = 0
+        AND COALESCE(NULLIF(LOWER(TRIM(rc.status)), ''), 'unused') = 'unused'
+        AND COALESCE(rc.is_downstream_sold, 0) = 0
+        AND ${buildAccountRecoveryEligibleCodeSql('rc')}
+        AND COALESCE(NULLIF(LOWER(TRIM(rc.channel)), ''), 'common') = ?
+        AND rc.created_at >= DATETIME(DATE('now', 'localtime', ?))
+        AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
+        AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
+        AND (rc.reserved_for_uid IS NULL OR rc.reserved_for_uid = '')
+    `,
+    [normalizedChannel, createdSinceModifier]
+  )
+
+  return Number(result?.[0]?.values?.[0]?.[0] || 0)
 }

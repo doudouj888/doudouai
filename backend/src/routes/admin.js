@@ -54,7 +54,7 @@ import {
 } from '../services/purchase-products.js'
 import { withLocks } from '../utils/locks.js'
 import { redeemCodeInternal } from './redemption-codes.js'
-import { buildAccountRecoveryEligibleCodeSql, resolveOrderDeadlineMs, selectRecoveryCode } from '../services/account-recovery.js'
+import { buildAccountRecoveryEligibleCodeSql, countAvailableRecoveryCodes, resolveOrderDeadlineMs, selectRecoveryCode } from '../services/account-recovery.js'
 import { CHATGPT_OAI_CLIENT_VERSION } from '../services/account-client-profile.js'
 
 const router = express.Router()
@@ -3563,36 +3563,10 @@ router.get('/account-recovery/one-click/preview', async (req, res) => {
 
     const db = await getDatabase()
 
-    // Best-effort inventory count (common channel only); actual recovery may still fail due to per-order expiry requirements.
-    const capacityLimit = 6
-    const availableResult = db.exec(
-      `
-        SELECT COUNT(*)
-        FROM redemption_codes rc
-	        JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
-	        WHERE rc.is_redeemed = 0
-	          AND COALESCE(rc.is_downstream_sold, 0) = 0
-	          AND ${ACCOUNT_RECOVERY_ELIGIBLE_CODE_SQL}
-	          AND rc.account_email IS NOT NULL
-          AND trim(rc.account_email) != ''
-          AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = 'common'
-          AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
-          AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
-          AND (rc.reserved_for_uid IS NULL OR rc.reserved_for_uid = '')
-          AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) < ?
-          AND COALESCE(ga.is_open, 0) = 1
-          AND COALESCE(ga.is_banned, 0) = 0
-          AND ga.token IS NOT NULL
-          AND trim(ga.token) != ''
-          AND ga.chatgpt_account_id IS NOT NULL
-          AND trim(ga.chatgpt_account_id) != ''
-          AND ga.expire_at IS NOT NULL
-          AND trim(ga.expire_at) != ''
-          AND DATETIME(REPLACE(ga.expire_at, '/', '-')) >= DATETIME('now', 'localtime')
-      `,
-      [capacityLimit]
-    )
-    const availableCount = Number(availableResult[0]?.values?.[0]?.[0] || 0)
+    const availableCount = countAvailableRecoveryCodes(db, {
+      codeCreatedWithinDays: days,
+      channel: 'common'
+    })
 
     const eligibilitySql = `
       WITH log_flags AS (
@@ -3990,7 +3964,6 @@ router.post('/account-recovery/recover', async (req, res) => {
         for (let attempt = 1; attempt <= ACCOUNT_RECOVERY_REDEEM_MAX_ATTEMPTS; attempt += 1) {
           const selectedRecovery = selectRecoveryCode(db, {
             minExpireMs: requireExpireCoverDeadline ? orderDeadlineMs : Date.now(),
-            capacityLimit: 6,
             preferNonToday: requireExpireCoverDeadline,
             preferLatestExpire: !requireExpireCoverDeadline,
             limit: 200,

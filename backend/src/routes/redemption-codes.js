@@ -2711,7 +2711,6 @@ router.post('/recover', async (req, res) => {
         for (let attempt = 1; attempt <= ACCOUNT_RECOVERY_REDEEM_MAX_ATTEMPTS; attempt += 1) {
           const selectedRecovery = selectRecoveryCode(db, {
             minExpireMs: requireExpireCoverDeadline ? orderDeadlineMs : Date.now(),
-            capacityLimit: 6,
             preferNonToday: requireExpireCoverDeadline,
             preferLatestExpire: !requireExpireCoverDeadline,
             limit: 200,
