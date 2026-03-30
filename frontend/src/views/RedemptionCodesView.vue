@@ -63,11 +63,11 @@ const statusTooltipText = ref('')
 const statusTooltipPosition = ref({ x: 0, y: 0 })
 const runtimeChannels = ref<Channel[]>([])
 const channelOptions = ref<Array<{ value: string; label: string }>>([
-  { value: 'common', label: '閫氱敤娓犻亾' },
+  { value: 'common', label: '通用渠道' },
   { value: 'paypal', label: 'PayPal' },
   { value: 'linux-do', label: 'Linux DO' },
   { value: 'xhs', label: '小红书' },
-  { value: 'xianyu', label: '闂查奔' },
+  { value: 'xianyu', label: '闲鱼' },
   { value: 'artisan-flow', label: 'ArtisanFlow' }
 ])
 const channelOptionsMap = computed(() => new Map(channelOptions.value.map(option => [option.value, option.label])))
@@ -80,7 +80,7 @@ const externalImportChannelOptions = computed(() => runtimeChannels.value
     label: channel.name || channel.key
   })))
 const orderTypeOptions: { value: PurchaseOrderType; label: string }[] = [
-  { value: 'warranty', label: '璐ㄤ繚璁㈠崟' },
+  { value: 'warranty', label: '质保订单' },
   { value: 'no_warranty', label: '无质保订单' },
 ]
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -148,7 +148,7 @@ const getCodeStatusLabel = (code: RedemptionCode) => {
   if (status === 'success') return '已履约'
   if (status === 'used') return '已使用'
   if (status === 'invalid') return '已失效'
-  if (status === 'failed') return '灞ョ害澶辫触'
+  if (status === 'failed') return '履约失败'
   return '待兑换'
 }
 
@@ -1125,19 +1125,19 @@ const handleInviteSubmit = async () => {
             @click="handleRefresh"
           >
             <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" />
-            鍒锋柊鍒楄〃
+            刷新列表
           </Button>
           <Button @click="exportCodes" variant="outline" class="h-10 bg-white border-gray-200">
             <Download class="mr-2 h-4 w-4" />
-            瀵煎嚭
+            导出
           </Button>
           <Button @click="openImportExternalDialog" variant="outline" class="h-10 bg-white border-gray-200">
             <Upload class="mr-2 h-4 w-4" />
-            瀵煎叆澶栭儴鍗″瘑
+            导入外部卡密
           </Button>
           <Button @click="openBatchDialog" class="h-10 bg-black hover:bg-gray-800 text-white rounded-xl shadow-lg shadow-black/10">
             <Plus class="mr-2 h-4 w-4" />
-            鎵归噺鐢熸垚
+            批量生成
           </Button>
        </div>
     </Teleport>
@@ -1150,7 +1150,7 @@ const handleInviteSubmit = async () => {
           <Input
             v-model="searchQuery"
             @input="handleSearch"
-            placeholder="鎼滅储鍏戞崲鐮?/ 閭 / 鐢ㄦ埛..."
+            placeholder="搜索兑换码 / 邮箱 / 用户..."
             class="pl-9 h-11 bg-white border-transparent shadow-[0_2px_10px_rgba(0,0,0,0.03)] focus:shadow-[0_4px_12px_rgba(0,0,0,0.06)] rounded-xl transition-all"
           />
         </div>
@@ -1175,7 +1175,7 @@ const handleInviteSubmit = async () => {
             class="h-10 rounded-xl px-4 shadow-sm"
           >
             <Trash2 class="mr-2 h-4 w-4" />
-            鎵归噺鍒犻櫎 ({{ selectedCodes.length }})
+            批量删除 ({{ selectedCodes.length }})
           </Button>
         </div>
     </div>
@@ -1279,7 +1279,7 @@ const handleInviteSubmit = async () => {
                       v-if="!code.isRedeemed && isCodeReserved(code)"
                       class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 border border-orange-200"
                     >
-                      宸茬粦瀹?
+                      已预留
                     </span>
                   </div>
                 </td>
@@ -1291,7 +1291,7 @@ const handleInviteSubmit = async () => {
                    >
                      <SelectTrigger class="w-[140px] h-8 text-xs border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded-lg transition-all focus:ring-0">
                        <SelectValue
-                         placeholder="閫夋嫨娓犻亾"
+                          placeholder="选择渠道"
                          :display-text="code.channelName || getChannelLabel(code.channel)"
                        />
                      </SelectTrigger>
@@ -1426,7 +1426,7 @@ const handleInviteSubmit = async () => {
                     v-if="!code.isRedeemed && isCodeReserved(code)"
                     class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 border border-orange-200"
                   >
-                    宸茬粦瀹?
+                    已预留
                   </span>
                 </div>
              </div>
@@ -1434,7 +1434,7 @@ const handleInviteSubmit = async () => {
              <div class="space-y-3 mb-4">
                 <div class="grid grid-cols-2 gap-4">
                    <div>
-                      <p class="text-xs text-gray-400 mb-1">娓犻亾</p>
+                       <p class="text-xs text-gray-400 mb-1">渠道</p>
                       <Select
                          :model-value="code.channel || 'common'"
                          @update:modelValue="value => handleChannelChange(code, value)"
@@ -1649,12 +1649,12 @@ const handleInviteSubmit = async () => {
                     class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
                     :class="activeTab === 'invites' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
                   >
-                    寰呭姞鍏ュ垪琛?
+                    待加入列表
                   </button>
                 </div>
 
                 <Button size="sm" variant="outline" class="rounded-lg text-xs h-8 border-gray-200" @click="showInviteForm = !showInviteForm">
-                  {{ showInviteForm ? '鍙栨秷' : '閭€璇锋柊鎴愬憳' }}
+                  {{ showInviteForm ? '取消' : '邀请新成员' }}
                 </Button>
               </div>
 

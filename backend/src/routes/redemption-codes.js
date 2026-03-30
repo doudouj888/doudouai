@@ -308,12 +308,108 @@ const CODE_SELECT_FIELDS = `
   processing_token, processing_started_at, last_error, prefix, batch_no
 `
 
+let redemptionCodesSchemaEnsured = false
+const getTableColumns = (db, tableName) => {
+  const result = db.exec(`PRAGMA table_info(${tableName})`)
+  const rows = result?.[0]?.values || []
+  return new Set(rows.map(row => String(row[1] || '').trim()).filter(Boolean))
+}
+
+const ensureRedemptionCodesSchema = async (db) => {
+  if (!db || redemptionCodesSchemaEnsured) return
+
+  const columns = getTableColumns(db, 'redemption_codes')
+  let changed = false
+
+  const ensureColumn = (columnName, definitionSql) => {
+    if (columns.has(columnName)) return
+    db.run(`ALTER TABLE redemption_codes ADD COLUMN ${definitionSql}`)
+    columns.add(columnName)
+    changed = true
+  }
+
+  ensureColumn('account_email', 'account_email TEXT')
+  ensureColumn('channel', "channel TEXT DEFAULT 'common'")
+  ensureColumn('channel_name', 'channel_name TEXT')
+  ensureColumn('reserved_for_uid', 'reserved_for_uid TEXT')
+  ensureColumn('reserved_for_username', 'reserved_for_username TEXT')
+  ensureColumn('reserved_for_entry_id', 'reserved_for_entry_id INTEGER')
+  ensureColumn('reserved_at', 'reserved_at DATETIME')
+  ensureColumn('reserved_for_order_no', 'reserved_for_order_no TEXT')
+  ensureColumn('reserved_for_order_email', 'reserved_for_order_email TEXT')
+  ensureColumn('order_type', "order_type TEXT DEFAULT 'warranty'")
+  ensureColumn('is_downstream_sold', 'is_downstream_sold INTEGER DEFAULT 0')
+  ensureColumn('downstream_sold_at', 'downstream_sold_at DATETIME')
+  ensureColumn('fulfillment_mode', "fulfillment_mode TEXT DEFAULT 'internal_invite'")
+  ensureColumn('supplier_name', 'supplier_name TEXT')
+  ensureColumn('supplier_type', 'supplier_type TEXT')
+  ensureColumn('supplier_request_id', 'supplier_request_id TEXT')
+  ensureColumn('supplier_status', "supplier_status TEXT DEFAULT 'pending'")
+  ensureColumn('supplier_response_code', 'supplier_response_code TEXT')
+  ensureColumn('supplier_response_message', 'supplier_response_message TEXT')
+  ensureColumn('supplier_response_raw', 'supplier_response_raw TEXT')
+  ensureColumn('supplier_redeemed_at', 'supplier_redeemed_at DATETIME')
+  ensureColumn('status', `status TEXT DEFAULT '${CODE_STATUS_UNUSED}'`)
+  ensureColumn('assigned_account_id', 'assigned_account_id INTEGER')
+  ensureColumn('activated_email', 'activated_email TEXT')
+  ensureColumn('activated_at', 'activated_at DATETIME')
+  ensureColumn('processing_token', 'processing_token TEXT')
+  ensureColumn('processing_started_at', 'processing_started_at DATETIME')
+  ensureColumn('last_error', 'last_error TEXT')
+  ensureColumn('prefix', 'prefix TEXT')
+  ensureColumn('batch_no', 'batch_no TEXT')
+
+  if (columns.has('status')) {
+    db.run(
+      `UPDATE redemption_codes
+       SET status = CASE WHEN is_redeemed = 1 THEN '${CODE_STATUS_USED}' ELSE '${CODE_STATUS_UNUSED}' END
+       WHERE status IS NULL OR TRIM(status) = ''`
+    )
+  }
+  if (columns.has('activated_email')) {
+    db.run(
+      `UPDATE redemption_codes
+       SET activated_email = redeemed_by
+       WHERE is_redeemed = 1
+         AND redeemed_by IS NOT NULL
+         AND TRIM(redeemed_by) != ''
+         AND (activated_email IS NULL OR TRIM(activated_email) = '')`
+    )
+  }
+  if (columns.has('activated_at')) {
+    db.run(
+      `UPDATE redemption_codes
+       SET activated_at = redeemed_at
+       WHERE is_redeemed = 1
+         AND redeemed_at IS NOT NULL
+         AND (activated_at IS NULL OR TRIM(activated_at) = '')`
+    )
+  }
+
+  if (changed) {
+    await saveDatabase()
+  }
+
+  redemptionCodesSchemaEnsured = true
+}
+
 const isCodeProcessingExpired = (startedAt) => {
   if (!startedAt) return true
   const startedMs = new Date(startedAt).getTime()
   if (Number.isNaN(startedMs)) return true
   return Date.now() - startedMs >= CODE_PROCESSING_TIMEOUT_MS
 }
+
+router.use(async (req, res, next) => {
+  try {
+    const db = await getDatabase()
+    await ensureRedemptionCodesSchema(db)
+    next()
+  } catch (error) {
+    console.error('Ensure redemption codes schema error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
 
 const resetStaleProcessingCode = (db, codeId) => {
   if (!db || !codeId) return

@@ -79,6 +79,56 @@ const mapAccountRow = (row) => ({
   updatedAt: row[15]
 })
 
+let gptAccountsSchemaEnsured = false
+const getTableColumns = (db, tableName) => {
+  const result = db.exec(`PRAGMA table_info(${tableName})`)
+  const rows = result?.[0]?.values || []
+  return new Set(rows.map(row => String(row[1] || '').trim()).filter(Boolean))
+}
+
+const ensureGptAccountsSchema = async (db) => {
+  if (!db || gptAccountsSchemaEnsured) return
+
+  const columns = getTableColumns(db, 'gpt_accounts')
+  let changed = false
+
+  const ensureColumn = (columnName, definitionSql) => {
+    if (columns.has(columnName)) return
+    db.run(`ALTER TABLE gpt_accounts ADD COLUMN ${definitionSql}`)
+    columns.add(columnName)
+    changed = true
+  }
+
+  ensureColumn('refresh_token', 'refresh_token TEXT')
+  ensureColumn('invite_count', 'invite_count INTEGER DEFAULT 0')
+  ensureColumn('chatgpt_account_id', 'chatgpt_account_id TEXT')
+  ensureColumn('oai_device_id', 'oai_device_id TEXT')
+  ensureColumn('expire_at', 'expire_at TEXT')
+  ensureColumn('is_open', 'is_open INTEGER DEFAULT 0')
+  ensureColumn('is_banned', 'is_banned INTEGER DEFAULT 0')
+  ensureColumn('remark', 'remark TEXT')
+  ensureColumn('max_capacity', `max_capacity INTEGER DEFAULT ${DEFAULT_MAX_CAPACITY}`)
+  ensureColumn('reserved_slots', 'reserved_slots INTEGER DEFAULT 0')
+  ensureColumn('last_assigned_at', 'last_assigned_at DATETIME')
+
+  db.run(
+    `UPDATE gpt_accounts
+     SET max_capacity = ${DEFAULT_MAX_CAPACITY}
+     WHERE max_capacity IS NULL OR max_capacity < 1`
+  )
+  db.run(
+    `UPDATE gpt_accounts
+     SET reserved_slots = 0
+     WHERE reserved_slots IS NULL OR reserved_slots < 0`
+  )
+
+  if (changed) {
+    await saveDatabase()
+  }
+
+  gptAccountsSchemaEnsured = true
+}
+
 const EXPIRE_AT_REGEX = /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/
 
 const formatExpireAt = (date) => {
@@ -124,6 +174,17 @@ const normalizeExpireAt = (value) => {
 
   return null
 }
+
+router.use(async (req, res, next) => {
+  try {
+    const db = await getDatabase()
+    await ensureGptAccountsSchema(db)
+    next()
+  } catch (error) {
+    console.error('Ensure GPT accounts schema error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
 
 const collectEmails = (payload) => {
   if (!payload) return []
