@@ -1,381 +1,559 @@
-# GPT Team 管理和兑换码自动邀请系统
+# ChatGPT Team Helper
+[![Telegram 交流群](https://img.shields.io/badge/Telegram-交流群-blue?logo=telegram)](https://t.me/+W7iplSdBGXhlMDc1)
+[![Linux DO](https://img.shields.io/badge/Linux%20DO-Yelo-green?logo=discourse)](https://linux.do/u/yelo/summary)
 
-一个基于 FastAPI 的 ChatGPT Team 账号管理系统，支持管理员批量管理 Team 账号，用户通过兑换码自动加入 Team。
+一个多渠道 Team 账号管理与兑换平台，支持多种订单渠道接入、自动发货、积分体系和权限管理。使用 Vue 3、Node.js、shadcn-vue 和 SQLite 构建。
 
-## ✨ 功能特性
+<img width="3840" height="1920" alt="image" src="https://github.com/user-attachments/assets/e5fcd950-7844-4ff7-be00-28246024a847" />
 
-### 管理员功能
-- **Team 账号管理**
-  - 单个/批量导入 Team 账号（支持任意格式的 AT Token）
-  - 智能识别和提取 AT Token、邮箱、Account ID
-  - 自动同步 Team 信息（名称、订阅计划、到期时间、成员数）
-  - Team 成员管理（查看、添加、删除成员）
-  - Team 状态监控（可用/已满/已过期/错误）
+<img width="3840" height="1926" alt="image" src="https://github.com/user-attachments/assets/5d8f4107-71ed-46c7-86c5-46cb02dfacbc" />
 
-- **兑换码管理**
-  - 单个/批量生成兑换码
-  - 自定义兑换码和有效期
-  - 兑换码状态筛选（未使用/已使用/已过期）
-  - 导出兑换码为文本文件
-  - 删除未使用的兑换码
 
-- **使用记录查询**
-  - 多维度筛选（邮箱、兑换码、Team ID、日期范围）
-  - 分页展示（每页20条记录）
-  - 统计数据（总数、今日、本周、本月）
+## Star History
 
-- **系统设置**
-  - 代理配置（HTTP/SOCKS5）
-  - 管理员密码修改
-  - 日志级别动态调整
+[![Star History Chart](https://api.star-history.com/svg?repos=Kylsky/chatgpt-team-helper&type=Date)](https://star-history.com/#Kylsky/chatgpt-team-helper&Date)
 
-### 用户功能
-- **LinuxDo 账号体系（仅此一种登录/注册方式）**
-   - 通过 LinuxDo OAuth 登录
-   - 首次登录自动注册本地用户
+## 功能特性
 
-- **积分系统**
-   - 每日签到领取积分
-   - 记录积分变动流水
+### 账号管理
+- Team 账号全生命周期管理（创建、编辑、删除、封号）
+- 开放API 提供 Token 自动刷新与状态同步
+- 账号用户数、邀请数实时同步（通过 OpenAI API）
+- 账号到期管理与开放展示控制
+- 创建账号时自动生成兑换码
 
-- **积分商城**
-   - 使用积分购买兑换码
-   - 订单记录可追踪
+### 多渠道兑换
+- **通用兑换**：邮箱 + 兑换码直接兑换
+- **小红书兑换**：邮箱 + 小红书订单号自动匹配兑换
+- **闲鱼兑换**：邮箱 + 闲鱼订单号自动匹配兑换
+- **Linux DO 兑换**：通过 Linux DO OAuth 身份验证后兑换
+- **开放账号页**：Linux DO 用户付费上车，支持 Credit 积分支付
+- **补号/账号恢复**：历史订单找回与重新兑换
 
-- **兑换流程**
-  - 输入邮箱和兑换码
-  - 自动验证兑换码有效性
-  - 展示可用 Team 列表
-  - 手动选择或自动分配 Team
-  - 自动发送 Team 邀请到用户邮箱
+### 订单管理
+- **支付订单**：Zpay 支付网关集成，支持多种商品类型（标准、无质保）
+- **Credit 订单**：Linux DO Credit 支付网关集成
+- **小红书订单**：API 自动同步 + 手动导入，定时轮询
+- **闲鱼订单**：API 同步 + WebSocket 实时监听 + IM 自动发货
 
-## 🛠️ 技术栈
+### 支付与商城
+- 在线购买商城，支持多种商品
+- Zpay / Credit 双支付网关
+- 订单状态轮询与过期自动清理
+- 支付回调与自动发码
 
-- **后端框架**: FastAPI 0.109+
-- **Web 服务器**: Uvicorn
-- **数据库**: SQLite + SQLAlchemy 2.0 + aiosqlite
-- **模板引擎**: Jinja2
-- **HTTP 客户端**: curl-cffi（模拟浏览器指纹，绕过 Cloudflare 防护）
-- **认证**: Session-based（bcrypt 密码哈希）
-- **加密**: cryptography（AES-256-GCM）
-- **JWT 解析**: PyJWT
-- **前端**: HTML + CSS + 原生 JavaScript
+### 积分体系
+- 邀请奖励 & 购买奖励积分
+- 积分提现/返现（比例与门槛可配置）
+- 积分流水明细查询
 
-## 📋 系统要求
+### 候车室
+- Linux DO 用户排队上车机制
+- 信任等级门槛控制
+- 自动上车定时任务（可配置活跃时段）
+- 冷却期管理
 
-- Python 3.10+
-- pip（Python 包管理器）
-- 操作系统：Windows / Linux / macOS
+### Telegram 机器人
+- 私聊兑换流程（`/redeem`）
+- 库存查询（`/stock`）
+- 在线购买（`/buy`）
+- 管理员专属：随机激活（`/random_activate`）、指定激活（`/activate`）
+- 事件通知推送（支付成功、订单同步等）
 
-## � 快速开始 (Docker 部署，推荐)
+### 权限管理（RBAC）
+- 用户管理（注册、登录、邮箱域名白名单）
+- 角色管理（超级管理员 / 自定义角色）
+- 菜单权限动态分配
+- 功能模块开关（小红书 / 闲鱼 / 支付 / 开放账号）
 
-项目支持使用 Docker 快速部署，确保环境一致性并简化配置。
+### 系统运维
+- 邮件告警（SMTP）
+- Cloudflare Turnstile 人机验证
+- 开放账号超员扫描定时任务
+- 订单过期清理定时任务
+- Credit 订单失败补偿任务
+- 数据统计仪表盘
 
-### 1. 准备工作
+## 技术栈
 
-确保你的系统已安装：
-- Docker
-- Docker Compose
+### 前端
+- Vue 3 + TypeScript + Vite
+- Vue Router
+- shadcn-vue UI 组件
+- Tailwind CSS v3
+- Axios
 
-### 2. 创建目录和配置文件
+### 后端
+- Node.js + Express
+- SQLite (sql.js)
+- JWT 认证
+- Nginx 反向代理（Docker 部署）
+- Supervisor 进程管理（Docker 部署）
 
-新建一个目录并进入：
+## 部署
+
+### Docker Compose 部署（推荐）
+
+#### 1. 克隆仓库
+
 ```bash
-mkdir team-manage && cd team-manage
+git clone <仓库地址>
+cd auto-gpt-team
 ```
 
-创建 `docker-compose.yml` 文件：
-```yaml
-services:
-  app:
-    image: npckf/team-manage:latest
-    container_name: team-manage-app
-    ports:
-      - "${APP_PORT:-8008}:${APP_PORT:-8008}"
-    volumes:
-      - ./data:/app/data
-      - ./.env:/app/.env
-    restart: always
-    environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/team_manage.db
+#### 2. 构建镜像
+
+```bash
+docker build -t auto-gpt-team:latest .
 ```
 
-创建 `.env` 文件，可以直接手写或者使用以下模板修改：
+#### 3. 配置环境变量
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+编辑 `backend/.env`，至少配置以下必填项：
+
 ```env
-# 应用配置
-APP_NAME=GPT Team 管理系统
-APP_VERSION=0.1.0
-APP_HOST=0.0.0.0
-APP_PORT=8008
-DEBUG=True
+# 必须设置为强随机字符串，否则后端拒绝启动
+JWT_SECRET=你的随机密钥
 
-# 数据库配置（默认使用 SQLite）
-DATABASE_URL=sqlite+aiosqlite:///team_manage.db
+# 管理员初始密码（可选，不设则首次启动随机生成并输出到日志）
+INIT_ADMIN_PASSWORD=你的初始密码
 
-# 安全配置（生产环境请修改）
-SECRET_KEY=your-secret-key-here-change-in-production
-ADMIN_PASSWORD=admin123
-
-# 日志配置
-LOG_LEVEL=INFO
-
-# 代理配置（可选，推荐在管理员后台网页端图形化配置）
-PROXY_ENABLED=False
-PROXY=
-
-# JWT 配置
-JWT_VERIFY_SIGNATURE=False
-
-# 💡 注意提示 💡
-# LinuxDo OAuth 配置、积分商城配置、网站公告、系统维护模式、外部 API、质保天数及所有系统级的动态设置，
-# 现已全面迁移至 管理员后台（/admin/settings）通过图形界面动态配置，无需且不应在 .env 中设置。
+# 如前后端分离部署，配置允许的前端域名
+CORS_ORIGINS=https://你的域名
 ```
 
-### 3. 启动应用
+> 完整环境变量列表请参考 `backend/.env.example`，大部分配置也可在管理后台「系统设置」中在线修改。
+
+#### 4. 启动服务
 
 ```bash
-# 拉取镜像并启动容器
 docker compose up -d
 ```
 
-Docker 配置中已自动将宿主机的 `data/` 目录和 `.env` 文件映射到容器内部，因此你的数据会自动保存在项目根目录下，容器重启或升级更新时数据依然存在。
+#### 5. 访问应用
 
-### 4. 访问应用
+浏览器打开 `http://你的服务器IP:5173`
 
-- **用户兑换页面**: http://localhost:8008/
-- **LinuxDo 用户中心**: http://localhost:8008/user/points
-- **管理员登录页面**: http://localhost:8008/login
-- **管理员控制台**: http://localhost:8008/admin
+#### 6. 登录
 
-**默认管理员账号**:
-- 用户名: `admin`
-- 密码: `admin123`（建议在首次登录后在后台修改密码配置）
+- 用户名：`admin`
+- 密码：`INIT_ADMIN_PASSWORD` 环境变量值，或查看容器日志获取随机密码：
+  ```bash
+  docker compose logs app | grep -i password
+  ```
 
-### 5. 常用 Docker 命令
+#### 数据持久化
+
+`docker-compose.yml` 默认将数据库目录挂载到宿主机：
+
+| 容器路径 | 宿主机路径 | 说明 |
+| --- | --- | --- |
+| `/app/backend/db` | `./data` | SQLite 数据库文件 |
+
+#### 日志查看
+
+所有日志统一输出到容器 stdout/stderr，使用 Docker 原生日志命令查看：
 
 ```bash
-# 查看日志
-docker compose logs -f
+# 实时查看日志
+docker compose logs -f app
 
-# 停止并移除容器
+# 查看最近 100 行
+docker compose logs --tail 100 app
+```
+
+#### 常用运维命令
+
+```bash
+# 查看服务状态
+docker compose ps
+
+# 查看实时日志
+docker compose logs -f app
+
+# 重启服务
+docker compose restart app
+
+# 停止服务
 docker compose down
 
-# 重新构建镜像
-docker compose build --no-cache
+# 重新构建并启动（代码更新后）
+docker build -t auto-gpt-team:latest . && docker compose up -d
 ```
 
----
+#### 更新升级
 
-## 💻 源码运行 (二选一，面向开发者)
-
-### 1. 创建虚拟环境
+当有新版本发布时，可通过以下步骤更新：
 
 ```bash
-# Windows
-python -m venv venv
-venv\Scripts\activate
+# 1. 拉取最新代码
+git pull
 
-# Linux/macOS
-python3 -m venv venv
-source venv/bin/activate
+# 2. 重新构建镜像
+docker build -t auto-gpt-team:latest .
+
+# 3. 重启服务（自动使用新镜像）
+docker compose down && docker compose up -d
 ```
 
-### 2. 安装依赖
+> 也可以在管理后台「系统设置」页面点击「检查更新」按钮查看是否有新版本。
+
+#### 自定义端口
+
+修改 `docker-compose.yml` 中的端口映射：
+
+```yaml
+ports:
+  - "8080:5173"  # 将外部端口改为 8080
+```
+
+#### 反向代理（Nginx 示例）
+
+如需通过域名 + HTTPS 访问，在宿主机 Nginx 中添加：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name 你的域名;
+
+    ssl_certificate     /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### Zeabur 部署
+
+[Zeabur](https://zeabur.com) 是一个无需配置服务器的云平台，支持一键部署。
+
+1. 在 Zeabur 创建项目，选择「从 Git 仓库部署」
+2. 输入仓库地址：`https://github.com/Kylsky/chatgpt-team-helper`
+3. 配置环境变量：`JWT_SECRET`、`INIT_ADMIN_PASSWORD`
+4. 配置端口 `5173` 并生成域名
+5. 添加持久化硬盘，挂载路径 `/app/backend/db`
+
+详细步骤请参考 [Zeabur 部署教程](docs/zeabur-deploy.md)。
+
+### 本地开发
+
+#### 1. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+npm install
 ```
 
-### 3. 初始化数据库
+#### 2. 启动开发服务器
 
+终端 1 - 启动后端：
 ```bash
-python init_db.py
+cd backend
+npm run dev
 ```
 
-### 4. 启动应用
-
+终端 2 - 启动前端：
 ```bash
-# 开发模式（自动重载）
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8008
-
-# 或者直接运行
-python app/main.py
+cd frontend
+npm run dev
 ```
 
+#### 3. 访问应用
 
+- 前端：http://localhost:5173
+- 后端 API：http://localhost:3000
 
+## 可选功能配置
 
-## 📁 项目结构
+> 以下所有配置均可在管理后台「系统设置」中在线修改，系统配置优先于环境变量。
 
-```
-team-manage/
-├── app/                        # 应用主目录
-│   ├── main.py                 # FastAPI 入口文件
-│   ├── config.py               # 配置管理
-│   ├── database.py             # 数据库连接
-│   ├── models.py               # SQLAlchemy 模型
-│   ├── routes/                 # 路由模块
-│   │   ├── admin.py            # 管理员路由
-│   │   ├── user.py             # 用户路由
-│   │   ├── api.py              # API 端点
-│   │   ├── auth.py             # 认证路由
-│   │   └── redeem.py           # 兑换路由
-│   ├── services/               # 业务逻辑服务
-│   │   ├── auth.py             # 认证服务
-│   │   ├── chatgpt.py          # ChatGPT API 集成
-│   │   ├── encryption.py       # 加密服务
-│   │   ├── redeem_flow.py      # 兑换流程服务
-│   │   ├── redemption.py       # 兑换码管理服务
-│   │   ├── settings.py         # 系统设置服务
-│   │   └── team.py             # Team 管理服务
-│   ├── utils/                  # 工具模块
-│   │   ├── jwt_parser.py       # JWT Token 解析
-│   │   └── token_parser.py     # Token 正则匹配
-│   ├── dependencies/           # FastAPI 依赖
-│   │   └── auth.py             # 认证依赖
-│   ├── templates/              # Jinja2 模板
-│   │   ├── base.html           # 基础布局
-│   │   ├── auth/               # 认证页面
-│   │   ├── admin/              # 管理员页面
-│   │   └── user/               # 用户页面
-│   └── static/                 # 静态文件
-│       ├── css/                # 样式文件
-│       └── js/                 # JavaScript 文件
-├── init_db.py                  # 数据库初始化脚本
-├── requirements.txt            # Python 依赖
-├── Dockerfile                  # Docker 镜像构建文件
-├── docker-compose.yml          # Docker 服务编排文件
-├── .dockerignore               # Docker 忽略文件
-├── .env.example                # 环境变量示例
-├── CLAUDE.md                   # Claude Code 指南
-├── 需求.md                     # 项目需求文档
-├── 任务.md                     # 任务跟踪文档
-├── 接口.md                     # API 接口文档
-└── README.md                   # 项目说明文档
+### 邮件服务（SMTP）
+
+用于发送订单通知、告警邮件、邮箱验证码等。
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=your-email@example.com
+SMTP_PASS=your-password
+SMTP_FROM=noreply@example.com
+ADMIN_ALERT_EMAIL=admin@example.com
+
+# 可选：自定义邮件主题
+EMAIL_VERIFICATION_SUBJECT=邮箱验证码
+PURCHASE_EMAIL_SUBJECT=订单信息
 ```
 
-## 🔧 配置说明
+### Linux DO OAuth
 
-### 数据库配置
+使用 `/redeem/linux-do`、`/redeem/open-accounts` 或候车室功能前需配置。
 
-默认使用 SQLite 数据库，数据库文件为 `team_manage.db`。如需使用其他数据库，请修改 `DATABASE_URL`。
+```env
+# 必填：在 connect.linux.do 创建应用获取
+LINUXDO_CLIENT_ID=your-client-id
+LINUXDO_CLIENT_SECRET=your-client-secret
+LINUXDO_REDIRECT_URI=https://你的域名/redeem/linux-do
+
+# 可选：自定义 OAuth Endpoint（一般无需修改）
+LINUXDO_AUTH_URL=https://connect.linux.do/oauth2/authorize
+LINUXDO_TOKEN_URL=https://connect.linuxdo.org/oauth2/token
+LINUXDO_USER_INFO_URL=https://connect.linuxdo.org/api/user
+```
+
+#### Linux DO Credit 支付（开放账号上车）
+
+```env
+LINUXDO_CREDIT_BASE_URL=https://credit.linux.do/epay
+LINUXDO_CREDIT_PID=your-pid
+LINUXDO_CREDIT_KEY=your-key
+
+# 上车消耗积分
+OPEN_ACCOUNTS_CREDIT_COST=30
+CREDIT_ORDER_EXPIRE_MINUTES=15
+```
+
+### Telegram 机器人
+
+```env
+# 必填：通过 @BotFather 创建机器人获得
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+
+# 可选：限制可使用机器人的用户（逗号分隔），留空表示对所有人开放
+TELEGRAM_ALLOWED_USER_IDS=123456789,987654321
+
+# 可选：机器人调用内部 API 的地址（默认 http://127.0.0.1:PORT/api）
+TELEGRAM_INTERNAL_API_BASE_URL=https://你的域名/api
+```
+
+#### Telegram 通知推送
+
+```env
+# 是否启用通知（支付成功、订单同步等事件）
+TELEGRAM_NOTIFY_ENABLED=true
+
+# 通知接收者的 chat_id（逗号分隔），优先级高于 TELEGRAM_ALLOWED_USER_IDS
+TELEGRAM_NOTIFY_CHAT_IDS=123456789
+
+# 通知请求超时（毫秒）
+TELEGRAM_NOTIFY_TIMEOUT_MS=8000
+```
+
+#### Telegram 账号绑定
+
+使用 `/admin auth` 命令将 Telegram 账号绑定到系统用户，绑定后可使用管理员专属功能。
+
+```
+/admin auth <用户名或邮箱> <API_KEY>
+```
+
+- 仅限私聊中使用
+- `API_KEY` 优先使用管理后台「系统设置」中配置的值，未配置时回退到 `backend/.env` 中的 `AUTO_BOARDING_API_KEY`
+- 绑定成功后，若该用户拥有 `super_admin` 角色，即可使用 `/random_activate`、`/activate` 等管理员指令
+
+#### Telegram 管理员功能
+
+> ⚠️ `/activate` 和 `/random_activate` 命令暂未开放，以下配置仅供参考。
+
+需要先通过 `/admin auth` 绑定 Telegram 账号，且该用户拥有 `super_admin` 角色。
+
+```env
+# /activate 指定激活账号
+TELEGRAM_ACTIVATE_SSE_URL=http://127.0.0.1:8000/api/payments/checkout
+TELEGRAM_ACTIVATE_API_KEY=your-api-key
+TELEGRAM_ACTIVATE_TIMEOUT_MS=120000
+
+# /random_activate 随机激活账号
+TELEGRAM_RANDOM_ACTIVATE_SSE_URL=http://127.0.0.1:8000/api/team/accounts/random/checkout/sse
+TELEGRAM_RANDOM_ACTIVATE_API_KEY=your-api-key
+TELEGRAM_RANDOM_ACTIVATE_TIMEOUT_MS=120000
+```
+
+### 小红书订单同步
+
+在管理后台「小红书订单」页面配置 Cookie 后启用。
+
+```env
+# 自动同步调度开关
+XHS_AUTO_SYNC_SCHEDULER_ENABLED=true
+
+# 轮询间隔（秒）
+XHS_AUTO_SYNC_CHECK_INTERVAL_SECONDS=60
+```
+
+**Cookie 配置方式：**
+1. 安装浏览器插件 [EditThisCookie](https://www.editthiscookie.com/)（推荐）或使用开发者工具
+2. 登录小红书千帆（https://ark.xiaohongshu.com）
+3. 使用 EditThisCookie 导出 JSON 格式的 Cookie，或在开发者工具 Network 面板复制请求 Cookie
+4. 在管理后台「小红书订单」页面粘贴，支持以下格式：
+
+```json
+// 对象格式（推荐）
+{
+  "cookie_name_1": "cookie_value_1",
+  "cookie_name_2": "cookie_value_2"
+}
+
+// 数组格式
+[
+  { "name": "cookie_name_1", "value": "cookie_value_1", "domain": ".xiaohongshu.com" }
+]
+```
+
+### 闲鱼订单同步
+
+在管理后台「闲鱼订单」页面配置 Cookie 后启用。
+
+```env
+# Cookie 自动续期调度开关
+XIANYU_LOGIN_REFRESH_ENABLED=true
+
+# 续期间隔（分钟）
+XIANYU_LOGIN_REFRESH_INTERVAL_MINUTES=30
+```
+
+#### 闲鱼 WebSocket 自动发货
+
+开启后，收到"待发货"订单时自动给买家发送 IM 消息。
+
+```env
+XIANYU_WS_DELIVERY_ENABLED=true
+XIANYU_WS_DELIVERY_MESSAGE=请访问网页输入邮箱和订单号进行自助激活：https://你的域名/redeem/xianyu
+
+# 可选：主动轮询同步间隔（秒），部分环境下服务端不会主动推送
+XIANYU_WS_DELIVERY_SYNC_POLL_INTERVAL_SECONDS=60
+
+# 调试选项
+XIANYU_WS_DELIVERY_DEBUG=false
+XIANYU_WS_DELIVERY_DRY_RUN=false
+```
+
+### 支付网关（Zpay）
+
+```env
+ZPAY_BASE_URL=https://zpayz.cn
+ZPAY_PID=your-pid
+ZPAY_KEY=your-key
+
+# 可选：用于生成支付回调 notify_url 的公网域名
+PUBLIC_BASE_URL=https://你的域名
+```
+
+#### 商品价格配置
+
+```env
+# 标准商品
+PURCHASE_PRODUCT_NAME=通用渠道激活码
+PURCHASE_PRICE=1.00
+PURCHASE_SERVICE_DAYS=30
+
+# 无质保商品
+PURCHASE_NO_WARRANTY_PRODUCT_NAME=通用渠道激活码（无质保）
+PURCHASE_NO_WARRANTY_PRICE=5.00
+PURCHASE_NO_WARRANTY_SERVICE_DAYS=30
+
+# 防封禁商品（已下线，配置已弃用）
+# PURCHASE_ANTI_BAN_PRODUCT_NAME=通用渠道激活码(防封禁)
+# PURCHASE_ANTI_BAN_PRICE=10.00
+# PURCHASE_ANTI_BAN_SERVICE_DAYS=30
+
+# 订单过期时间（分钟）
+PURCHASE_ORDER_EXPIRE_MINUTES=15
+```
+
+### Cloudflare Turnstile 人机验证
+
+```env
+TURNSTILE_SITE_KEY=your-site-key
+TURNSTILE_SECRET_KEY=your-secret-key
+TURNSTILE_TIMEOUT_MS=5000
+```
 
 ### 代理配置
 
-如果需要通过代理访问 ChatGPT API，可以在管理员面板的"系统设置"中配置代理：
+用于 OpenAI API 调用、开放账号上车、邀请同步等场景（同一账号会稳定散列到某个代理，以便均衡分摊）。
 
-- 支持 HTTP 代理：`http://proxy.example.com:8080`
-- 支持 SOCKS5 代理：`socks5://proxy.example.com:1080`
+```env
+# 代理池（逗号分隔，支持 http/https/socks5/socks5h）
+OPEN_ACCOUNTS_SWEEPER_PROXY_URLS=socks5h://127.0.0.1:1080,http://user:pass@127.0.0.1:8080
 
-### 安全配置
+# 或从文件读取（每行一个代理地址）
+OPEN_ACCOUNTS_SWEEPER_PROXY_FILE=/path/to/proxies.txt
 
-**生产环境部署前，请务必修改以下配置**：
-
-1. `SECRET_KEY`: 用于 Session 签名，请使用随机字符串
-2. `ADMIN_PASSWORD`: 管理员初始密码，首次登录后请立即修改
-3. `DEBUG`: 生产环境请设置为 `False`
-
-## 📖 使用指南
-
-### 管理员操作流程
-
-1. **登录管理员面板**
-   - 访问 http://localhost:8008/login
-   - 使用默认账号登录（admin/admin123）
-   - 首次登录后建议修改密码
-
-2. **导入 Team 账号**
-   - 进入"Team 管理" → "导入 Team"
-   - 单个导入：填写 AT Token、邮箱（可选）、Account ID（可选）
-   - 批量导入：粘贴包含 AT Token 的文本（支持任意格式）
-   - 系统会自动识别和提取信息
-
-3. **生成兑换码**
-   - 进入"兑换码管理" → "生成兑换码"
-   - 单个生成：可自定义兑换码和有效期
-   - 批量生成：设置数量和有效期
-   - 生成后可复制或下载
-
-4. **查看使用记录**
-   - 进入"使用记录"
-   - 可按邮箱、兑换码、Team ID、日期范围筛选
-   - 查看统计数据（总数、今日、本周、本月）
-
-5. **系统设置**
-   - 进入"系统设置"
-   - 配置代理（如需）
-   - 修改管理员密码
-   - 调整日志级别
-
-### 用户兑换流程
-
-1. **访问兑换页面**
-   - 访问 http://localhost:8008/
-
-2. **输入信息**
-   - 填写邮箱地址
-   - 输入兑换码
-
-3. **选择 Team**
-   - 系统展示可用 Team 列表
-   - 手动选择 Team 或点击"自动选择"
-
-4. **完成兑换**
-   - 系统自动发送邀请到邮箱
-   - 查看兑换结果（Team 名称、到期时间）
-
-5. **接受邀请**
-   - 检查邮箱收到的 ChatGPT Team 邀请邮件
-   - 点击邮件中的链接接受邀请
-
-## 🔌 API 接口
-
-详细的 API 接口文档请参考 [接口.md](接口.md)。
-
-主要接口：
-
-- `POST /auth/login` - 管理员登录
-- `POST /auth/logout` - 管理员登出
-- `POST /redeem/verify` - 验证兑换码
-- `POST /redeem/confirm` - 确认兑换
-- `GET /admin` - 管理员控制台
-- `GET /admin/teams/import` - Team 导入页面
-- `GET /admin/codes` - 兑换码列表
-- `GET /admin/records` - 使用记录
-
-## 🐛 故障排除
-
-### 数据库初始化失败
-
-```bash
-# 删除旧数据库文件
-rm team_manage.db
-
-# 重新初始化
-python init_db.py
+# 单个代理配置请参考 backend/.env.example（优先级与变量名以代码为准）
 ```
 
-### 无法访问 ChatGPT API
+## 数据库
 
-1. 检查网络连接
-2. 配置代理（如需）
-3. 检查 AT Token 是否有效
-4. 查看日志文件排查错误
+SQLite 数据库文件：`backend/db/database.sqlite`
 
-### 导入 Team 失败
+重置数据库：
+```bash
+rm backend/db/database.sqlite
+# 重启后端服务会自动重建数据库
+```
 
-1. 确保 AT Token 格式正确
-2. 检查 Token 是否过期
-3. 验证 Token 是否有 Team 管理权限
+## 项目结构
 
-## 📄 许可证
+```
+.
+├── frontend/              # Vue 3 前端应用
+│   ├── src/
+│   │   ├── components/ui/ # shadcn-vue 组件
+│   │   ├── views/         # 页面视图
+│   │   ├── router/        # 路由配置
+│   │   ├── services/      # API 服务
+│   │   └── lib/           # 工具函数与菜单配置
+│   └── package.json
+├── backend/               # Node.js 后端应用
+│   ├── src/
+│   │   ├── database/      # 数据库初始化
+│   │   ├── routes/        # API 路由
+│   │   ├── services/      # 业务服务（同步、通知、定时任务等）
+│   │   ├── middleware/     # 认证与权限中间件
+│   │   └── server.js      # 服务器入口
+│   └── package.json
+├── Dockerfile             # 多阶段构建
+├── docker-compose.yml     # 容器编排
+├── nginx.conf             # Nginx 配置
+├── supervisord.conf       # 进程管理配置
+└── package.json           # 根配置（workspaces）
+```
 
-本项目仅供学习和研究使用。
+## 故障排除
 
-## 🤝 贡献
+### Docker 部署问题
 
-欢迎提交 Issue 和 Pull Request！
+**容器启动失败：**
+```bash
+docker compose logs app
+```
 
----
+**数据库权限问题：**
+```bash
+chmod 777 ./data
+docker compose restart app
+```
 
-**注意**: 本系统仅用于合法的 ChatGPT Team 账号管理，请遵守 OpenAI 的服务条款。
+### 本地开发端口占用
+
+```bash
+# 后端（3000）
+lsof -ti:3000 | xargs kill -9
+
+# 前端（5173）
+lsof -ti:5173 | xargs kill -9
+```
+
+## License
+
+ISC
