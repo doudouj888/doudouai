@@ -9,8 +9,12 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:utf8": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-dev-utf8.ps1",
     "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:frontend:utf8": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-workspace-utf8.ps1 frontend",
     "dev:backend": "npm run dev --workspace=backend",
+    "dev:backend:utf8": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/run-workspace-utf8.ps1 backend",
+    "start:utf8": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-dev-utf8.ps1",
     "build": "npm run build --workspace=frontend",
     "test": "npm run test --workspace=backend"
   },

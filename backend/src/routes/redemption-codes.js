@@ -1,4 +1,4 @@
-import express from 'express'
+﻿import express from 'express'
 import { getDatabase, saveDatabase } from '../database/init.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { requireMenu } from '../middleware/rbac.js'
@@ -162,7 +162,7 @@ const resolveXianyuOrderTypeFromActualPaid = (actualPaid) => {
   const tierDistance = (value) => Math.min(Math.abs(value - 5), Math.abs(value - 15))
   const normalized = tierDistance(asCentToYuan) < tierDistance(asYuan) ? asCentToYuan : asYuan
 
-  // 约定：< 10 元按“无质保（5元档）”，>= 10 元按“质保（15元档）”
+  // 约定：小于 10 元按“无质保（5 元档）”，否则按“质保（15 元档）”。
   return normalized < 10 ? ORDER_TYPE_NO_WARRANTY : ORDER_TYPE_WARRANTY
 }
 
@@ -173,8 +173,9 @@ const resolveChannelNameFromRegistry = (channelsByKey, channelKey) => {
   return name || ''
 }
 
-const mapCodeRow = (row, channelsByKey) => {
+const mapCodeRow = (row, channelsByKey, options = {}) => {
   if (!row) return null
+  const includeAccountIsBanned = options.includeAccountIsBanned === true
   const channelValue = normalizeChannel(row[6], 'common')
   const storedChannelName = row[7] == null ? '' : String(row[7]).trim()
   const channelName = storedChannelName || resolveChannelNameFromRegistry(channelsByKey, channelValue) || channelValue
@@ -183,7 +184,7 @@ const mapCodeRow = (row, channelsByKey) => {
   const activatedEmail = row.length > 19 ? row[19] || null : null
   const activatedAt = row.length > 20 ? row[20] || null : null
   const downstreamBaseIndex = 21
-  const hasAccountIsBannedColumn = row.length >= 33
+  const hasAccountIsBannedColumn = includeAccountIsBanned
   const accountIsBannedIndex = hasAccountIsBannedColumn ? 23 : -1
   const supplierBaseIndex = hasAccountIsBannedColumn ? 24 : 23
   const processingTokenIndex = supplierBaseIndex + 8
@@ -237,7 +238,7 @@ const mapCodeRow = (row, channelsByKey) => {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CODE_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 const OUT_OF_STOCK_MESSAGE = '暂无可用兑换码，请联系管理员补货'
-export const DOWNSTREAM_SOLD_MESSAGE = '该兑换码已通过下游售出，不可在本平台兑换'
+export const DOWNSTREAM_SOLD_MESSAGE = '该兑换码已通过下游售出，不可在本平台兑换';
 const FULFILLMENT_MODE_INTERNAL = 'internal_invite'
 const FULFILLMENT_MODE_EXTERNAL = 'external_api'
 const CODE_STATUS_UNUSED = 'unused'
@@ -272,7 +273,7 @@ export class RedemptionError extends Error {
 const isExternalCardRedeemMode = (channelConfig) => String(channelConfig?.redeemMode || '').trim().toLowerCase() === 'external-card'
 const CODE_PROCESSING_TIMEOUT_MS = Math.max(30_000, toInt(process.env.REDEMPTION_CODE_PROCESSING_TIMEOUT_MS, 5 * 60 * 1000))
 
-// 生成随机兑换码
+// 标准化兑换码前缀
 const normalizeCodePrefix = (value) => {
   const raw = String(value ?? '').trim()
   if (!raw) return ''
@@ -285,7 +286,7 @@ function generateRedemptionCode(length = 12, prefix = '') {
   let code = ''
   for (let i = 0; i < length; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length))
-    // 每4位添加一个分隔符
+    // 姣?位添加一个分隔符
     if ((i + 1) % 4 === 0 && i < length - 1) {
       code += '-'
     }
@@ -306,6 +307,19 @@ const CODE_SELECT_FIELDS = `
   fulfillment_mode, supplier_name, supplier_type, supplier_request_id,
   supplier_status, supplier_response_code, supplier_response_message, supplier_redeemed_at,
   processing_token, processing_started_at, last_error, prefix, batch_no
+`
+
+const CODE_SELECT_FIELDS_RC = `
+  rc.id, rc.code, rc.is_redeemed, rc.redeemed_at, rc.redeemed_by,
+  rc.account_email, rc.channel, rc.channel_name, rc.created_at, rc.updated_at,
+  rc.reserved_for_uid, rc.reserved_for_username, rc.reserved_for_entry_id, rc.reserved_at,
+  rc.reserved_for_order_no, rc.reserved_for_order_email, rc.order_type,
+  COALESCE(rc.status, CASE WHEN rc.is_redeemed = 1 THEN '${CODE_STATUS_USED}' ELSE '${CODE_STATUS_UNUSED}' END) AS status,
+  rc.assigned_account_id, rc.activated_email, rc.activated_at,
+  COALESCE(rc.is_downstream_sold, 0) AS is_downstream_sold, rc.downstream_sold_at,
+  rc.fulfillment_mode, rc.supplier_name, rc.supplier_type, rc.supplier_request_id,
+  rc.supplier_status, rc.supplier_response_code, rc.supplier_response_message, rc.supplier_redeemed_at,
+  rc.processing_token, rc.processing_started_at, rc.last_error, rc.prefix, rc.batch_no
 `
 
 let redemptionCodesSchemaEnsured = false
@@ -988,7 +1002,7 @@ export async function redeemCodeInternal({
     && Boolean(requestedChannelConfig.allowCommonFallback)
 
   if (codeChannel !== requestedChannel && !fallbackFromCommonChannelAllowed) {
-    throw new RedemptionError(403, '该兑换码仅能在对应渠道的兑换页使用')
+    throw new RedemptionError(403, '该兑换码只能在对应渠道的兑换页使用')
   }
 
   if (requestedChannelConfig.redeemMode === 'linux-do' && reservedForUid && reservedForUid !== normalizedRedeemerUid) {
@@ -1273,7 +1287,7 @@ export async function redeemCodeInternal({
           userCount: resolvedUserCount,
           inviteStatus: '邀请已发送',
           inviteDetails: allocationInviteResult.response,
-          message: '您已成功加入 GPT team账号，邀请邮件已发送至您的邮箱',
+          message: '您已成功加入 GPT Team 账号，邀请邮件已发送至您的邮箱',
           inviteCount: resolvedInviteCount,
           maxCapacity: allocatedAccount.maxCapacity,
           redeemedAt: new Date().toISOString()
@@ -1581,7 +1595,7 @@ export async function redeemCodeInternal({
   }
 }
 
-// 获取兑换码（支持可选分页）
+// 鑾峰彇鍏戞崲鐮侊紙鏀寔鍙€夊垎椤碉級
 router.get('/', authenticateToken, requireMenu('redemption_codes'), async (req, res) => {
   try {
     const db = await getDatabase()
@@ -1595,7 +1609,7 @@ router.get('/', authenticateToken, requireMenu('redemption_codes'), async (req, 
 
     if (!paginated) {
       const result = db.exec(`
-        SELECT ${CODE_SELECT_FIELDS},
+        SELECT ${CODE_SELECT_FIELDS_RC},
                CASE
                  WHEN ga.id IS NULL THEN 0
                  ELSE COALESCE(ga.is_banned, 0)
@@ -1610,7 +1624,7 @@ router.get('/', authenticateToken, requireMenu('redemption_codes'), async (req, 
         return res.json([])
       }
 
-      return res.json(result[0].values.map(row => mapCodeRow(row, channelsByKey)))
+      return res.json(result[0].values.map(row => mapCodeRow(row, channelsByKey, { includeAccountIsBanned: true })))
     }
 
     const pageSizeMax = 200
@@ -1665,7 +1679,7 @@ router.get('/', authenticateToken, requireMenu('redemption_codes'), async (req, 
 
     const dataResult = db.exec(
       `
-        SELECT ${CODE_SELECT_FIELDS},
+        SELECT ${CODE_SELECT_FIELDS_RC},
                CASE
                  WHEN ga.id IS NULL THEN 0
                  ELSE COALESCE(ga.is_banned, 0)
@@ -1679,7 +1693,7 @@ router.get('/', authenticateToken, requireMenu('redemption_codes'), async (req, 
       `,
       [...params, pageSize, offset]
     )
-    const codes = (dataResult[0]?.values || []).map(row => mapCodeRow(row, channelsByKey))
+    const codes = (dataResult[0]?.values || []).map(row => mapCodeRow(row, channelsByKey, { includeAccountIsBanned: true }))
 
     return res.json({
       codes,
@@ -1909,7 +1923,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     {
       const requestedCount = toInt(count, 0)
       if (!requestedCount || requestedCount < 1 || requestedCount > 1000) {
-        return res.status(400).json({ error: '数量必须在 1-1000 之间' })
+        return res.status(400).json({ error: '鏁伴噺蹇呴』鍦?1-1000 之间' })
       }
 
       const db = await getDatabase()
@@ -1978,7 +1992,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     }
 
     if (!count || count < 1 || count > 1000) {
-      return res.status(400).json({ error: '数量必须在 1-1000 之间' })
+      return res.status(400).json({ error: '鏁伴噺蹇呴』鍦?1-1000 之间' })
     }
 
     // 必须指定账号
@@ -1989,7 +2003,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
     const db = await getDatabase()
     const { byKey: channelsByKey } = await getChannels(db)
 
-    // 检查账号是否存在并获取当前人数
+    // 妫€鏌ヨ处鍙锋槸鍚﹀瓨鍦ㄥ苟鑾峰彇褰撳墠浜烘暟
     const accountResult = db.exec(`
       SELECT id, email, user_count FROM gpt_accounts WHERE email = ?
     `, [accountEmail])
@@ -2017,8 +2031,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
 
     const unusedCodesCount = unusedCodesResult[0]?.values[0]?.[0] || 0
 
-    // 计算实际可以生成的数量
-    // 可创建数量 = 总容量(5) - 当前人数 - 未使用的兑换码数
+    // 璁＄畻瀹為檯鍙互鐢熸垚鐨勬暟閲?    // 鍙垱寤烘暟閲?= 鎬诲閲?5) - 当前人数 - 未使用的兑换码数
     const totalCapacity = 5
     const availableSlots = totalCapacity - currentUserCount - unusedCodesCount
 
@@ -2027,14 +2040,14 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
         error: '该账号已无可用名额（当前人数 + 未使用兑换码数已达上限）',
         currentUserCount: currentUserCount,
         unusedCodesCount: unusedCodesCount,
-        allCodesCount: unusedCodesCount, // 兼容旧前端字段
+        allCodesCount: unusedCodesCount,
         availableSlots: 0
       })
     }
 
     const actualCount = Math.min(count, availableSlots)
 
-    // 如果请求数量超过可用名额，给出详细提示
+    // If the requested count exceeds available slots, log the capped amount.
     if (count > availableSlots) {
       console.log(`请求生成${count}个兑换码，但账号只有${availableSlots}个可用名额（当前${currentUserCount}人，已有${unusedCodesCount}个未使用兑换码），将只生成${actualCount}个`)
     }
@@ -2057,7 +2070,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
       let attempts = 0
       let success = false
 
-      // 尝试生成唯一的兑换码（最多重试4次）
+      // 灏濊瘯鐢熸垚鍞竴鐨勫厬鎹㈢爜锛堟渶澶氶噸璇?次）
       while (attempts < 4 && !success) {
         try {
           db.run(
@@ -2068,8 +2081,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
           success = true
         } catch (err) {
           if (err.message.includes('UNIQUE')) {
-            // 如果重复，重新生成
-            code = generateRedemptionCode()
+            // 濡傛灉閲嶅锛岄噸鏂扮敓鎴?            code = generateRedemptionCode()
             attempts++
           } else {
             throw err
@@ -2084,7 +2096,7 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
 
     saveDatabase()
 
-    // 获取新创建的兑换码
+    // 获取新创建的兑换码。
     const result = db.exec(`
       SELECT ${CODE_SELECT_FIELDS}
       FROM redemption_codes
@@ -2100,9 +2112,9 @@ router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async 
       failed: failedCodes.length,
       currentUserCount: currentUserCount,
       unusedCodesCount: unusedCodesCount + createdCodes.length,
-      allCodesCount: unusedCodesCount + createdCodes.length, // 兼容旧前端字段
+      allCodesCount: unusedCodesCount + createdCodes.length,
       availableSlots: availableSlots - createdCodes.length,
-      info: count > availableSlots ? `由于账号可用名额限制（当前${currentUserCount}人 + ${unusedCodesCount}个未使用兑换码），只生成了${actualCount}个兑换码` : undefined
+      info: count > availableSlots ? `由于账号可用名额限制（当前 ${currentUserCount} 人 + ${unusedCodesCount} 个未使用兑换码），只生成了 ${actualCount} 个兑换码` : undefined
     })
   } catch (error) {
     console.error('批量创建兑换码错误:', error)
@@ -2144,7 +2156,7 @@ router.post('/import-external', authenticateToken, requireMenu('redemption_codes
     }
 
     if (!candidates.length) {
-      return res.status(400).json({ error: '请提供至少 1 个卡密' })
+      return res.status(400).json({ error: '请至少提供 1 个卡密' })
     }
 
     const importedCodes = []
@@ -2211,7 +2223,7 @@ router.delete('/:id', authenticateToken, requireMenu('redemption_codes'), async 
   try {
     const db = await getDatabase()
 
-    // 检查兑换码是否存在
+    // 妫€鏌ュ厬鎹㈢爜鏄惁瀛樺湪
     const checkResult = db.exec(
       `SELECT id, is_redeemed, COALESCE(status, '${CODE_STATUS_UNUSED}') AS status
        FROM redemption_codes
@@ -2315,7 +2327,7 @@ router.post('/batch-delete', authenticateToken, requireMenu('redemption_codes'),
 
     res.json({ message: `成功删除 ${ids.length} 个兑换码` })
   } catch (error) {
-    console.error('批量删除兑换码错误:', error)
+    console.error('鎵归噺删除兑换码错误:', error)
     res.status(500).json({ error: '内部服务器错误' })
   }
 })
@@ -2792,12 +2804,12 @@ router.post('/recover', async (req, res) => {
         // - 只取开放账号（is_open=1）
         // - 严格模式下优先非当日（按 gpt_accounts.created_at 判断）
         // - 只用通用渠道兑换码（rc.channel 为空或 common）
-        // - 账号 expire_at 需未过期；在系统设置开启“过期覆盖订单截止日”时，还要求覆盖订单截止日
+        // - 账号 expire_at 需要未过期；启用“过期覆盖订单截止日”时，还要求覆盖订单截止时间
         // - 兑换码创建时间窗口由系统设置控制（默认近 7 天；可选强制仅当天）
         const recoverySettings = await getAccountRecoverySettings(db)
         const codeCreatedWithinDays = Math.max(1, toInt(recoverySettings?.effective?.codeCreatedWithinDays, 7))
         const requireExpireCoverDeadline = Boolean(recoverySettings?.effective?.requireExpireCoverDeadline)
-        // 同一购买邮箱下的其他有效订单已经占用的账号，不应在补录时再次分配回来。
+        // 同一购买邮箱下的其他有效订单已占用的账号，不应在补录时再次分配回来。
         const occupiedRecoveryAccountEmails = collectOccupiedRecoveryAccountEmails(refundableCandidates)
         const skipCodeFormatValidation = false
         const triedRecoveryCodeIds = new Set()
@@ -2892,7 +2904,7 @@ router.post('/recover', async (req, res) => {
         }
 
         const errorMessage = lastAttemptError?.message || '暂无可用通用渠道补录兑换码'
-        const responseMessage = '暂无可用通用渠道补录账号，请稍后再试或联系客服'
+        const responseMessage = '暂无可用通用渠道补录账号，请稍后重试或联系客服'
         const statusCode = 503
 
         recordAccountRecovery(db, {
@@ -3045,7 +3057,7 @@ router.post('/xhs/redeem-order', requireFeatureEnabled('xhs'), async (req, res) 
 	      }
 
 	      if (String(orderRecord.orderStatus || '').trim() === '已关闭') {
-	        return res.status(403).json({ error: '该订单已完成售后退款（已关闭），无法进行核销' })
+	        return res.status(403).json({ error: '该订单已关闭，无法进行核销' })
 	      }
 
 	      const db = await getDatabase()
@@ -3708,12 +3720,12 @@ router.post('/xianyu/redeem-order', requireFeatureEnabled('xianyu'), async (req,
   }
 })
 
-// ArtisanFlow 渠道 API：获取当天创建的兑换码
+// ArtisanFlow channel API: fetch redemption codes created today.
 router.get('/artisan-flow/today', apiKeyAuth, async (req, res) => {
   try {
     const db = await getDatabase()
 
-    // 使用 SQLite 的 date() 函数比较日期，'localtime' 确保使用服务器本地时间
+    // Compare dates with SQLite localtime so the server uses its local day boundary.
     const result = db.exec(`
       SELECT id, code, is_redeemed, redeemed_at, redeemed_by,
              account_email, channel, channel_name, created_at, updated_at
@@ -3749,7 +3761,7 @@ router.get('/artisan-flow/today', apiKeyAuth, async (req, res) => {
       codes
     })
   } catch (error) {
-    console.error('[ArtisanFlow API] 获取当天兑换码失败:', error)
+    console.error('[ArtisanFlow API] 鑾峰彇褰撳ぉ鍏戞崲鐮佸け璐?', error)
     res.status(500).json({ error: '服务器错误，请稍后重试' })
   }
 })

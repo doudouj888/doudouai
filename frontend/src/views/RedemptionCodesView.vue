@@ -194,7 +194,7 @@ const currentRedeemIsExternal = computed(() => isExternalCode(redeemTargetCode.v
 const redeemDialogTitle = computed(() => currentRedeemIsExternal.value ? '执行上游兑换' : '发送兑换邀请')
 const redeemDialogActionLabel = computed(() => (
   redeeming.value
-    ? (currentRedeemIsExternal.value ? '鎵ц涓?..' : '鍙戦€佷腑...')
+    ? (currentRedeemIsExternal.value ? '执行中...' : '发送中...')
     : (currentRedeemIsExternal.value ? '确认兑换' : '确认发送')
 ))
 const redeemEmailHelperText = computed(() => (
@@ -203,7 +203,7 @@ const redeemEmailHelperText = computed(() => (
     : '将向该邮箱发送 ChatGPT 成员邀请链接。'
 ))
 
-// 鍚屾鐩稿叧鐘舵€侊紙鍙傝€冭处鍙风鐞嗙殑鍚屾鎸夐挳浜や簰锛?
+// 同步相关状态（参考账号管理的同步按钮交互）
 const syncingAccountId = ref<number | null>(null)
 const syncingAccountEmail = ref<string | null>(null)
 const showSyncResultDialog = ref(false)
@@ -316,17 +316,17 @@ const handleChannelChange = async (target: RedemptionCode, nextChannel: string) 
     }
     showSuccessToast(message || '渠道已更新')
   } catch (err: any) {
-    showErrorToast(err.response?.data?.error || '鏇存柊娓犻亾澶辫触')
+    showErrorToast(err.response?.data?.error || '更新渠道失败')
   } finally {
     updatingChannelId.value = null
   }
 }
 
-// 鍒嗛〉鐩稿叧鐘舵€?
+// 分页相关状态
 const currentPage = ref(1)
 const pageSize = ref(10)
 
-// 鎼滅储鍜岀瓫閫夌姸鎬?
+// 搜索和筛选状态
 const searchQuery = ref('')
 const statusFilter = ref<'全部' | '已使用' | '未使用' | '已下游售出'>('全部')
 
@@ -340,7 +340,7 @@ const getCodeStatusTooltip = (code: RedemptionCode) => {
   return ''
 }
 
-// 璁＄畻鎬婚〉鏁?
+// 计算总页数
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCodes.value / pageSize.value)))
 const isCurrentPageAllSelected = computed(() => {
   if (codes.value.length === 0) return false
@@ -348,14 +348,14 @@ const isCurrentPageAllSelected = computed(() => {
   return codes.value.every(code => selectedSet.has(code.id))
 })
 
-// 鍒囨崲椤电爜
+// 切换页码
 const goToPage = async (page: number) => {
   if (page < 1 || page > totalPages.value || page === currentPage.value) return
   currentPage.value = page
   await loadCodes()
 }
 
-// 閲嶇疆鎼滅储骞惰繑鍥炵涓€椤?
+// 重置搜索并返回第一页
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 const handleSearch = () => {
   currentPage.value = 1
@@ -367,7 +367,7 @@ const handleSearch = () => {
   }, 300)
 }
 
-// 娓呯┖鎼滅储鍜岀瓫閫?
+// 清空搜索和筛选
 const clearFilters = () => {
   searchQuery.value = ''
   statusFilter.value = '全部'
@@ -406,7 +406,7 @@ const loadChannels = async () => {
 
     channelOptions.value = channels.map(channel => ({
       value: channel.key,
-      label: channel.isActive ? channel.name : `${channel.name}锛堝仠鐢級`
+      label: channel.isActive ? channel.name : `${channel.name}（停用）`
     }))
 
     if (!batchChannelOptions.value.some(option => option.value === selectedBatchChannel.value)) {
@@ -531,7 +531,7 @@ const loadAccounts = async () => {
 
     accounts.value = allAccounts
   } catch (err: any) {
-    console.error('鍔犺浇璐﹀彿鍒楄〃澶辫触:', err)
+    console.error('加载账号列表失败:', err)
   }
 }
 
@@ -576,7 +576,7 @@ const closeImportExternalDialog = () => {
 
 const handleImportExternal = async () => {
   if (!importExternalChannel.value) {
-    showWarningToast('璇烽€夋嫨 external-card 娓犻亾')
+    showWarningToast('请选择 external-card 渠道')
     return
   }
   if (!importExternalCodesText.value.trim()) {
@@ -599,7 +599,7 @@ const handleImportExternal = async () => {
     }
     showSuccessToast(result.message || `成功导入 ${result.imported} 个外部卡密`)
   } catch (err: any) {
-    showErrorToast(err.response?.data?.error || '瀵煎叆澶栭儴鍗″瘑澶辫触')
+    showErrorToast(err.response?.data?.error || '导入外部卡密失败')
   } finally {
     importingExternal.value = false
   }
@@ -638,13 +638,13 @@ const handleBatchCreate = async () => {
 }
 
 const handleDelete = async (id: number) => {
-  if (!confirm('纭畾瑕佸垹闄よ繖涓厬鎹㈢爜鍚楋紵')) return
+  if (!confirm('确定要销毁这个兑换码吗？')) return
 
   try {
     await redemptionCodeService.delete(id)
     await loadCodes()
   } catch (err: any) {
-    error.value = err.response?.data?.error || '鍒犻櫎澶辫触'
+    error.value = err.response?.data?.error || '销毁兑换码失败'
   }
 }
 
@@ -747,14 +747,14 @@ const handleBatchDelete = async () => {
     return
   }
 
-  if (!confirm(`纭畾瑕佸垹闄ら€変腑鐨?${selectedCodes.value.length} 涓厬鎹㈢爜鍚楋紵`)) return
+  if (!confirm(`确定要销毁选中的 ${selectedCodes.value.length} 个兑换码吗？`)) return
 
   try {
     await redemptionCodeService.batchDelete(selectedCodes.value)
     selectedCodes.value = []
     await loadCodes()
   } catch (err: any) {
-    error.value = err.response?.data?.error || '鎵归噺鍒犻櫎澶辫触'
+    error.value = err.response?.data?.error || '批量销毁兑换码失败'
   }
 }
 
@@ -781,7 +781,7 @@ const copyToClipboard = async (text: string, options: { silent?: boolean } = {})
 const handleCopyRedeemerEmail = async (code: RedemptionCode) => {
   const email = getRedeemerEmail(code)
   if (!email) {
-    showWarningToast('鏆傛棤鍙鍒剁殑閭')
+    showWarningToast('暂无可复制的邮箱')
     return
   }
   await copyToClipboard(email)
@@ -823,7 +823,7 @@ const handleTextPreview = async (text: string, event: MouseEvent | TouchEvent) =
   try {
     await copyToClipboard(text, { silent: true })
   } catch (error) {
-    showErrorToast('澶嶅埗澶辫触锛岃鎵嬪姩閫夋嫨鏂囨湰')
+    showErrorToast('复制失败，请手动选择文本')
   }
 }
 
@@ -851,7 +851,7 @@ const exportCodes = async () => {
     }
 
     if (exported.length === 0) {
-      showInfoToast('娌℃湁鏈娇鐢ㄧ殑鍏戞崲鐮佸彲瀵煎嚭')
+      showInfoToast('没有未使用的兑换码可导出')
       return
     }
 
@@ -864,7 +864,7 @@ const exportCodes = async () => {
     a.click()
     URL.revokeObjectURL(url)
   } catch (err: any) {
-    showErrorToast(err.response?.data?.error || '瀵煎嚭澶辫触')
+    showErrorToast(err.response?.data?.error || '导出失败')
   }
 }
 
@@ -922,7 +922,7 @@ const handleRedeemInvite = async () => {
     await loadCodes()
     closeRedeemDialog()
   } catch (err: any) {
-    const message = err.response?.data?.message || err.response?.data?.error || '鍏戞崲澶辫触锛岃绋嶅悗鍐嶈瘯'
+    const message = err.response?.data?.message || err.response?.data?.error || '兑换失败，请稍后重试'
     showErrorToast(message)
   } finally {
     redeeming.value = false
@@ -991,7 +991,7 @@ const refreshAccountSyncResult = async (accountId: number) => {
         ? latestResult.account.inviteCount
         : previousInviteCount.value
   } catch (err: any) {
-    const message = err.response?.data?.error || '鍒犻櫎鎴愬姛锛屼絾閲嶆柊鍚屾澶辫触锛岃绋嶅悗鍐嶈瘯'
+    const message = err.response?.data?.error || '删除成功，但重新同步失败，请稍后重试'
     showErrorToast(message)
   }
 }
@@ -1014,7 +1014,7 @@ const handleSyncUserCount = async (account: GptAccount) => {
     showSyncResultDialog.value = true
     loadInvites(account.id)
   } catch (err: any) {
-    syncError.value = err.response?.data?.error || '鍚屾澶辫触锛岃妫€鏌ョ綉缁滆繛鎺ュ拰璐﹀彿閰嶇疆'
+    syncError.value = err.response?.data?.error || '同步失败，请检查网络连接和账号配置'
     showSyncResultDialog.value = true
   } finally {
     syncingAccountId.value = null
@@ -1057,7 +1057,7 @@ const handleSyncAccountByEmail = async (email?: string) => {
 
 const handleDeleteSyncedUser = async (userId?: string) => {
   if (!syncResult.value || !syncResult.value.account || !userId) {
-    showErrorToast('缂哄皯蹇呰鐨勮处鍙锋垨鎴愬憳淇℃伅')
+    showErrorToast('缺少必要的账号或成员信息')
     return
   }
 
@@ -1073,7 +1073,7 @@ const handleDeleteSyncedUser = async (userId?: string) => {
     showSuccessToast(result.message || '成员已删除')
     await refreshAccountSyncResult(result.account.id)
   } catch (err: any) {
-    showErrorToast(err.response?.data?.error || '鍒犻櫎澶辫触')
+    showErrorToast(err.response?.data?.error || '删除失败')
   } finally {
     deletingUserId.value = null
   }
@@ -1089,7 +1089,7 @@ const handleInviteSubmit = async () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   if (!email) {
-    showErrorToast('璇疯緭鍏ラ偖绠卞湴鍧€')
+    showErrorToast('请输入邮箱地址')
     return
   }
 
@@ -1175,7 +1175,7 @@ const handleInviteSubmit = async () => {
             class="h-10 rounded-xl px-4 shadow-sm"
           >
             <Trash2 class="mr-2 h-4 w-4" />
-            批量删除 ({{ selectedCodes.length }})
+            批量销毁 ({{ selectedCodes.length }})
           </Button>
         </div>
     </div>
@@ -1192,7 +1192,7 @@ const handleInviteSubmit = async () => {
       <!-- Loading State -->
       <div v-if="loading" class="flex flex-col items-center justify-center py-20">
         <div class="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-        <p class="text-gray-400 text-sm font-medium mt-4">姝ｅ湪鍔犺浇鍏戞崲鐮?..</p>
+        <p class="text-gray-400 text-sm font-medium mt-4">正在加载兑换码...</p>
       </div>
 
       <!-- Empty State -->
@@ -1208,14 +1208,14 @@ const handleInviteSubmit = async () => {
           @click="clearFilters"
           class="rounded-xl border-gray-200"
         >
-          娓呴櫎绛涢€夋潯浠?
+          清除筛选条件
         </Button>
          <Button
             v-else
             class="rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200"
             @click="openBatchDialog"
           >
-            绔嬪嵆鐢熸垚
+            立即生成
           </Button>
       </div>
 
@@ -1236,11 +1236,11 @@ const handleInviteSubmit = async () => {
                 </th>
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">兑换码</th>
                 <th class="px-6 py-5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">状态</th>
-                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">娓犻亾</th>
+                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">渠道</th>
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">已分配账号</th>
-                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">鍏戞崲鐢ㄦ埛</th>
-                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">鍒涘缓鏃堕棿</th>
-                <th class="px-6 py-5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">鎿嶄綔</th>
+                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">兑换用户</th>
+                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">创建时间</th>
+                <th class="px-6 py-5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-50">
@@ -1336,7 +1336,7 @@ const handleInviteSubmit = async () => {
                         v-if="hasPendingReservation(code)"
                         class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600"
                       >
-                        寰呭厬鎹?
+                        待兑换
                       </span>
                       <span
                         v-else-if="code.isRedeemed && !isExternalCode(code)"
@@ -1390,7 +1390,7 @@ const handleInviteSubmit = async () => {
                       variant="ghost" 
                       class="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       @click="handleDelete(code.id)"
-                      title="鍒犻櫎"
+                      title="销毁"
                     >
                       <Trash2 class="w-4 h-4" />
                     </Button>
@@ -1478,12 +1478,12 @@ const handleInviteSubmit = async () => {
 
                 <div v-if="getRedeemerDisplay(code) || hasPendingReservation(code)" class="bg-gray-50 p-3 rounded-xl">
                    <div class="flex items-center justify-between">
-                      <span class="text-xs text-gray-400">鍏戞崲鐢ㄦ埛</span>
+                      <span class="text-xs text-gray-400">兑换用户</span>
                       <span
                          v-if="hasPendingReservation(code)"
                          class="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-600 border border-orange-100"
                       >
-                         寰呭厬鎹?
+                         待兑换
                       </span>
                    </div>
                    <p
@@ -1503,7 +1503,7 @@ const handleInviteSubmit = async () => {
                 </div>
                 
                 <div class="flex items-center justify-between text-xs text-gray-400 pt-2 border-t border-gray-50">
-                   <span>鍒涘缓鏃堕棿</span>
+                   <span>创建时间</span>
                    <span>{{ formatShanghaiDate(code.createdAt, dateFormatOptions).split(' ')[0] }}</span>
                 </div>
              </div>
@@ -1518,7 +1518,7 @@ const handleInviteSubmit = async () => {
 	                   :disabled="isCheckingUpstream(code.id)"
 	                >
 	                   <Search class="w-3.5 h-3.5 mr-1" :class="isCheckingUpstream(code.id) ? 'animate-spin' : ''" />
-	                   妫€鏌?
+	                   检查
 	                </Button>
 	                <Button
 	                   v-if="canReinviteCode(code)"
@@ -1529,7 +1529,7 @@ const handleInviteSubmit = async () => {
 	                   :disabled="isReinviting(code.id)"
 	                >
 	                   <RefreshCcw class="w-3.5 h-3.5 mr-1" :class="isReinviting(code.id) ? 'animate-spin' : ''" />
-	                   閲嶆柊閭€璇?
+	                   重新邀请
 	                </Button>
 	                <Button
 	                   v-else-if="canRedeemCode(code)"
@@ -1539,7 +1539,7 @@ const handleInviteSubmit = async () => {
 	                   @click="openRedeemDialog(code)"
 	                >
 	                   <Ticket class="w-3.5 h-3.5 mr-1" />
-	                   鍏戞崲
+	                   兑换
 	                </Button>
 	                <Button 
 	                   size="sm" 
@@ -1556,7 +1556,7 @@ const handleInviteSubmit = async () => {
         <!-- Footer -->
         <div class="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gray-50/30">
            <div class="text-xs text-gray-500 font-medium">
-              鍏?{{ totalCodes }} 涓厬鎹㈢爜
+              共 {{ totalCodes }} 个兑换码
            </div>
            
            <div v-if="totalPages > 1" class="flex items-center gap-1">
@@ -1595,19 +1595,19 @@ const handleInviteSubmit = async () => {
             <div>
               <h3 class="text-xl font-bold text-green-900 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                鍚屾鎴愬姛
+                同步成功
               </h3>
               <p class="text-green-700/80 text-sm mt-1">{{ syncResult.message }}</p>
               <p class="text-green-600/50 text-xs mt-2 flex items-center gap-1">
                 <span class="w-1 h-1 rounded-full bg-green-400"></span>
-                鏇存柊浜?{{ formatShanghaiDate(syncResult.account.updatedAt, dateFormatOptions) }}
+                更新于 {{ formatShanghaiDate(syncResult.account.updatedAt, dateFormatOptions) }}
               </p>
             </div>
 
             <div class="flex items-center gap-8 md:gap-12 border-t md:border-t-0 md:border-l border-green-200/50 pt-4 md:pt-0 md:pl-8">
               <!-- 褰撳墠浜烘暟 -->
               <div class="text-right">
-                <p class="text-xs font-medium text-green-600/60 uppercase tracking-wider mb-1">褰撳墠浜烘暟</p>
+                <p class="text-xs font-medium text-green-600/60 uppercase tracking-wider mb-1">当前人数</p>
                 <div class="flex items-baseline gap-1 justify-end">
                   <span v-if="previousUserCount !== null && previousUserCount !== syncResult.syncedUserCount" class="text-xl font-semibold text-green-600/40 mr-1">
                     {{ previousUserCount }} <span class="text-sm mx-0.5">→</span>
@@ -1642,7 +1642,7 @@ const handleInviteSubmit = async () => {
                     class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
                     :class="activeTab === 'members' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
                   >
-                    鎴愬憳鍒楄〃
+                    成员列表
                   </button>
                   <button
                     @click="activeTab = 'invites'"
@@ -1661,9 +1661,9 @@ const handleInviteSubmit = async () => {
               <!-- Invite Form -->
               <div v-if="showInviteForm" class="p-4 bg-blue-50/50 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-top-2">
                 <div class="flex gap-2">
-                  <Input v-model="inviteEmail" placeholder="杈撳叆閭鍦板潃..." class="bg-white h-10 border-blue-200 focus:border-blue-400" />
+                  <Input v-model="inviteEmail" placeholder="输入邮箱地址..." class="bg-white h-10 border-blue-200 focus:border-blue-400" />
                   <Button @click="handleInviteSubmit" :disabled="inviting" class="bg-blue-600 hover:bg-blue-700 text-white h-10 px-4 whitespace-nowrap">
-                    鍙戦€侀個璇?
+                    发送邀请
                   </Button>
                 </div>
               </div>
@@ -1673,9 +1673,9 @@ const handleInviteSubmit = async () => {
                 <table class="w-full text-sm">
                   <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                      <th class="px-4 py-3 text-left font-medium">鎴愬憳</th>
-                      <th class="px-4 py-3 text-left font-medium">瑙掕壊</th>
-                      <th class="px-4 py-3 text-right font-medium">鎿嶄綔</th>
+                      <th class="px-4 py-3 text-left font-medium">成员</th>
+                      <th class="px-4 py-3 text-left font-medium">角色</th>
+                      <th class="px-4 py-3 text-right font-medium">操作</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-50">
@@ -1701,7 +1701,7 @@ const handleInviteSubmit = async () => {
                       </td>
                     </tr>
                     <tr v-if="!syncResult.users?.items?.length">
-                      <td colspan="3" class="px-4 py-8 text-center text-gray-400">鏆傛棤鎴愬憳鏁版嵁</td>
+                      <td colspan="3" class="px-4 py-8 text-center text-gray-400">暂无成员数据</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1715,8 +1715,8 @@ const handleInviteSubmit = async () => {
                 <table v-else class="w-full text-sm">
                   <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                     <tr>
-                      <th class="px-4 py-3 text-left font-medium">鍙楅個閭</th>
-                      <th class="px-4 py-3 text-left font-medium">瑙掕壊</th>
+                      <th class="px-4 py-3 text-left font-medium">受邀邮箱</th>
+                      <th class="px-4 py-3 text-left font-medium">角色</th>
                       <th class="px-4 py-3 text-left font-medium">邀请时间</th>
                     </tr>
                   </thead>
@@ -1745,7 +1745,7 @@ const handleInviteSubmit = async () => {
 
           <!-- Footer -->
           <div class="px-8 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
-            <Button @click="closeSyncResultDialog" class="rounded-xl px-6 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">鍏抽棴</Button>
+            <Button @click="closeSyncResultDialog" class="rounded-xl px-6 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">关闭</Button>
           </div>
         </div>
 
@@ -1755,10 +1755,10 @@ const handleInviteSubmit = async () => {
             <X class="w-8 h-8" />
           </div>
           <div>
-            <h3 class="text-xl font-bold text-gray-900">鍚屾澶辫触</h3>
+            <h3 class="text-xl font-bold text-gray-900">同步失败</h3>
             <p class="text-gray-500 mt-2 max-w-sm mx-auto">{{ syncError }}</p>
           </div>
-          <Button @click="closeSyncResultDialog" variant="outline" class="rounded-xl px-8">鍏抽棴</Button>
+          <Button @click="closeSyncResultDialog" variant="outline" class="rounded-xl px-8">关闭</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -1831,15 +1831,15 @@ const handleInviteSubmit = async () => {
     <Dialog v-model:open="showImportExternalDialog">
       <DialogContent class="sm:max-w-[560px] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-3xl">
         <DialogHeader class="px-8 pt-8 pb-4">
-          <DialogTitle class="text-2xl font-bold text-gray-900">瀵煎叆澶栭儴鍗″瘑</DialogTitle>
+          <DialogTitle class="text-2xl font-bold text-gray-900">导入外部卡密</DialogTitle>
         </DialogHeader>
 
         <div class="px-8 pb-8 space-y-6">
           <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">鐩爣娓犻亾</Label>
+            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">目标渠道</Label>
             <Select v-model="importExternalChannel">
               <SelectTrigger class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
-                <SelectValue placeholder="閫夋嫨 external-card 娓犻亾" />
+                <SelectValue placeholder="选择 external-card 渠道" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="channel in externalImportChannelOptions" :key="channel.value" :value="channel.value">
@@ -1851,7 +1851,7 @@ const handleInviteSubmit = async () => {
           </div>
 
           <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">鍗″瘑鍒楄〃</Label>
+            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">卡密列表</Label>
             <textarea
               v-model="importExternalCodesText"
               rows="10"
@@ -1863,7 +1863,7 @@ const handleInviteSubmit = async () => {
         </div>
 
         <DialogFooter class="px-8 pb-8 pt-0">
-          <Button variant="ghost" @click="closeImportExternalDialog" class="rounded-xl text-gray-500">鍙栨秷</Button>
+          <Button variant="ghost" @click="closeImportExternalDialog" class="rounded-xl text-gray-500">取消</Button>
           <Button @click="handleImportExternal" :disabled="importingExternal" class="rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 px-6">
             {{ importingExternal ? '导入中...' : '开始导入' }}
           </Button>
@@ -1896,10 +1896,10 @@ const handleInviteSubmit = async () => {
            </div>
 
            <div v-if="!currentRedeemIsExternal" class="space-y-2">
-              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">璁㈠崟绫诲瀷</Label>
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">订单类型</Label>
               <Select v-model="redeemOrderType">
                 <SelectTrigger class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
-                  <SelectValue placeholder="閫夋嫨璁㈠崟绫诲瀷" />
+                  <SelectValue placeholder="选择订单类型" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem v-for="option in orderTypeOptions" :key="option.value" :value="option.value">
@@ -1911,7 +1911,7 @@ const handleInviteSubmit = async () => {
            </div>
 
            <div class="space-y-2">
-              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ currentRedeemIsExternal ? '鐩爣閭' : '鍙楅個閭' }}</Label>
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ currentRedeemIsExternal ? '目标邮箱' : '受邀邮箱' }}</Label>
               <Input
                 v-model="redeemEmail"
                 type="email"
@@ -1923,7 +1923,7 @@ const handleInviteSubmit = async () => {
         </div>
 
         <DialogFooter class="px-8 pb-8 pt-0">
-           <Button variant="ghost" @click="closeRedeemDialog" class="rounded-xl text-gray-500">鍙栨秷</Button>
+           <Button variant="ghost" @click="closeRedeemDialog" class="rounded-xl text-gray-500">取消</Button>
            <Button @click="handleRedeemInvite" :disabled="redeeming" class="rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 px-6">
              {{ redeemDialogActionLabel }}
            </Button>
@@ -1954,7 +1954,7 @@ const handleInviteSubmit = async () => {
         transform: 'translate(-50%, -100%)'
       }"
     >
-      <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">涓嬫父鍞嚭鏃堕棿</p>
+      <p class="text-[10px] uppercase tracking-widest text-gray-400 mb-1">下游售出时间</p>
       <p class="text-xs leading-snug whitespace-nowrap">{{ statusTooltipText }}</p>
     </div>
   </div>
