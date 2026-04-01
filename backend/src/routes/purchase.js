@@ -451,9 +451,13 @@ const getInternalAvailableCodeCount = (db, { channel } = {}) => {
     `
 	      SELECT COUNT(*)
 	      FROM redemption_codes rc
+	      JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
 	      WHERE rc.is_redeemed = 0
 	        AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = ?
-	        AND COALESCE(NULLIF(lower(trim(rc.status)), ''), 'unused') = 'unused'
+	        AND rc.account_email IS NOT NULL
+        AND ga.is_open = 1
+        AND ga.user_count < 6
+        AND DATE(ga.created_at) = DATE('now', 'localtime')
         AND COALESCE(rc.is_downstream_sold, 0) = 0
         AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
         AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
@@ -493,9 +497,13 @@ const reserveInternalCode = (db, { orderNo, email, channel } = {}) => {
     `
 	      SELECT rc.id, rc.code, rc.account_email
 	      FROM redemption_codes rc
+	      JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
 	      WHERE rc.is_redeemed = 0
 	        AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = ?
-	        AND COALESCE(NULLIF(lower(trim(rc.status)), ''), 'unused') = 'unused'
+	        AND rc.account_email IS NOT NULL
+        AND ga.is_open = 1
+        AND ga.user_count < 6
+        AND DATE(ga.created_at) = DATE('now', 'localtime')
         AND COALESCE(rc.is_downstream_sold, 0) = 0
         AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
         AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)

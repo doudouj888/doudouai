@@ -866,69 +866,8 @@ router.post('/', async (req, res) => {
     saveDatabase()
     return res.status(201).json(account)
 
-    // 生成随机兑换码的辅助函数
-    function generateRedemptionCode(length = 12) {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 排除容易混淆的字符
-      let code = ''
-      for (let i = 0; i < length; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length))
-        // 每4位添加一个分隔符
-        if ((i + 1) % 4 === 0 && i < length - 1) {
-          code += '-'
-        }
-      }
-      return code
-    }
-
-    // 自动生成兑换码并绑定到该账号
-    // Team 账号默认总容量 5，新建账号默认人数按 1 计算，所以默认生成 4 个兑换码
-    const totalCapacity = 5
-    const currentUserCountForCodes = Math.max(1, Number(finalUserCount) || 1)
-    const codesToGenerate = Math.max(0, totalCapacity - currentUserCountForCodes)
-
-    const generatedCodes = []
-    for (let i = 0; i < codesToGenerate; i++) {
-      let code = generateRedemptionCode()
-      let attempts = 0
-      let success = false
-
-      // 尝试生成唯一的兑换码（最多重试5次）
-      while (attempts < 5 && !success) {
-        try {
-          db.run(
-            `INSERT INTO redemption_codes (code, account_email, created_at, updated_at) VALUES (?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))`,
-            [code, normalizedEmail]
-          )
-          generatedCodes.push(code)
-          success = true
-        } catch (err) {
-          if (err.message.includes('UNIQUE')) {
-            // 如果重复，重新生成
-            code = generateRedemptionCode()
-            attempts++
-          } else {
-            throw err
-          }
-        }
-      }
-    }
-
     saveDatabase()
-
-    // 获取生成的兑换码信息
-    const codesResult = db.exec(`
-      SELECT code FROM redemption_codes
-      WHERE account_email = ?
-      ORDER BY created_at DESC
-    `, [normalizedEmail])
-
-    const codes = codesResult[0]?.values.map(row => row[0]) || []
-
-    res.status(201).json({
-      account,
-      generatedCodes: codes,
-      message: `账号创建成功，已自动生成${codes.length}个兑换码`
-    })
+    res.status(201).json({ account, message: '账号创建成功' })
   } catch (error) {
     console.error('Create GPT account error:', error)
     res.status(500).json({ error: 'Internal server error' })

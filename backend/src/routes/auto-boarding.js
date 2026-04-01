@@ -1,4 +1,4 @@
-﻿import express from 'express'
+import express from 'express'
 import { getDatabase, saveDatabase } from '../database/init.js'
 import { apiKeyAuth } from '../middleware/api-key-auth.js'
 import { syncAccountUserCount } from '../services/account-sync.js'
@@ -89,13 +89,13 @@ const deriveExpireAtFromToken = (token) => {
   return formatExpireAt(date)
 }
 
-// 鐢熸垚闅忔満鍏戞崲鐮佺殑杈呭姪鍑芥暟
+// 生成随机兑换码的辅助函数
 function generateRedemptionCode(length = 12) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 鎺掗櫎瀹规槗娣锋穯鐨勫瓧绗?
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // 排除容易混淆的字符
   let code = ''
   for (let i = 0; i < length; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length))
-    // 姣?浣嶆坊鍔犱竴涓垎闅旂
+    // 每4位添加一个分隔符
     if ((i + 1) % 4 === 0 && i < length - 1) {
       code += '-'
     }
@@ -108,20 +108,20 @@ async function syncAccountAndCleanup(account) {
   const removedUsers = []
 
   try {
-    console.log('[Auto Boarding] 鍑嗗鍚屾璐﹀彿:', {
+    console.log('[Auto Boarding] 准备同步账号:', {
       email: account.email,
       chatgptAccountId: account.chatgptAccountId
     })
     syncData = await syncAccountUserCount(account.id, {
       accountRecord: account
     })
-    console.log('[Auto Boarding] 鍚屾瀹屾垚:', {
+    console.log('[Auto Boarding] 同步完成:', {
       email: account.email,
       syncedUserCount: syncData.syncedUserCount,
       fetchedUsers: syncData?.users?.items?.length || 0
     })
   } catch (syncError) {
-    console.error('[Auto Boarding] 鍚屾澶辫触:', syncError)
+    console.error('[Auto Boarding] 同步失败:', syncError)
     return {
       account,
       syncResult: null,
@@ -141,7 +141,7 @@ async function syncAccountAndCleanup(account) {
   }
 }
 
-// 鑷姩涓婅溅鎺ュ彛
+// 自动上车接口
 router.post('/', apiKeyAuth, async (req, res) => {
   try {
     const { email, token, refreshToken, chatgptAccountId, oaiDeviceId } = req.body
@@ -159,15 +159,15 @@ router.post('/', apiKeyAuth, async (req, res) => {
     if (hasExpireAt && expireAtInput != null && String(expireAtInput).trim() && !normalizedExpireAt) {
       return res.status(400).json({
         error: 'Invalid expireAt format',
-        message: 'expireAt 鏍煎紡閿欒锛岃浣跨敤 YYYY/MM/DD HH:mm'
+        message: 'expireAt 格式错误，请使用 YYYY/MM/DD HH:mm'
       })
     }
 
-    // 楠岃瘉蹇呭～瀛楁
+    // 验证必填字段
     if (!email || !token) {
       return res.status(400).json({
         error: 'Email and token are required',
-        message: '閭鍜孴oken鏄繀濉」'
+        message: '邮箱和Token是必填项'
       })
     }
 
@@ -175,7 +175,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
 
     const db = await getDatabase()
 
-    // 妫€鏌ヨ处鍙锋槸鍚﹀凡瀛樺湪锛堥€氳繃email鎴朿hatgptAccountId锛?
+    // 检查账号是否已存在（通过email或chatgptAccountId）
     let existingAccount = null
 
     if (chatgptAccountId) {
@@ -191,7 +191,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
       }
     }
 
-    // 濡傛灉chatgptAccountId鏈壘鍒帮紝鍐嶉€氳繃email鏌ユ壘
+    // 如果chatgptAccountId未找到，再通过email查找
     if (!existingAccount) {
       const result = db.exec(
         'SELECT id, email FROM gpt_accounts WHERE lower(email) = ?',
@@ -206,7 +206,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
     }
 
     if (existingAccount) {
-      // 璐﹀彿宸插瓨鍦紝鏇存柊token鍜屽叾浠栦俊鎭?
+      // 账号已存在，更新token和其他信息
 	      db.run(
 	        `UPDATE gpt_accounts
 	         SET token = ?,
@@ -221,7 +221,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
 	      )
 	      saveDatabase()
 
-	      // 鑾峰彇鏇存柊鍚庣殑璐﹀彿淇℃伅
+	      // 获取更新后的账号信息
 	      const result = db.exec(`
 	        SELECT id, email, token, refresh_token, user_count, chatgpt_account_id, oai_device_id, expire_at,
 	               client_profile_key, client_user_agent, client_accept_language, client_oai_language,
@@ -261,7 +261,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
       })
     } else {
 	      const generatedClientProfile = generateAccountClientProfile(normalizedEmail, normalizedOaiDeviceId)
-	      // 鍒涘缓鏂拌处鍙凤紝榛樿浜烘暟璁剧疆涓?鑰屼笉鏄?
+	      // 创建新账号，默认人数设置为1而不是0
 	      db.run(
 	        `INSERT INTO gpt_accounts
 	         (email, token, refresh_token, user_count, chatgpt_account_id, oai_device_id, expire_at, is_open, client_profile_key, client_user_agent, client_accept_language, client_oai_language, created_at, updated_at)
@@ -281,7 +281,7 @@ router.post('/', apiKeyAuth, async (req, res) => {
 	        ]
 	      )
 
-	      // 鑾峰彇鏂板垱寤虹殑璐﹀彿
+	      // 获取新创建的账号
 	      const result = db.exec(`
 	        SELECT id, email, token, refresh_token, user_count, chatgpt_account_id, oai_device_id, expire_at,
 	               client_profile_key, client_user_agent, client_accept_language, client_oai_language,
@@ -309,7 +309,40 @@ router.post('/', apiKeyAuth, async (req, res) => {
 	        updatedAt: row[13]
 	      }
 
+      // 自动生成兑换码，数量为可用名额
+      // 可用名额 = 总容量(5) - 当前人数(1) - 所有兑换码数(0) = 4
+      const totalCapacity = 5
+      const currentUserCount = 1  // 刚创建的账号默认人数为1
+      const allCodesCount = 0  // 新账号还没有任何兑换码
+      const availableSlots = totalCapacity - currentUserCount - allCodesCount
+      const codesToGenerate = Math.min(4, availableSlots)  // 生成4个兑换码（正好填满可用名额）
+
       const generatedCodes = []
+      for (let i = 0; i < codesToGenerate; i++) {
+        let code = generateRedemptionCode()
+        let attempts = 0
+        let success = false
+
+        // 尝试生成唯一的兑换码（最多重试4次）
+        while (attempts < 4 && !success) {
+          try {
+	            db.run(
+	              `INSERT INTO redemption_codes (code, account_email, created_at, updated_at) VALUES (?, ?, DATETIME('now', 'localtime'), DATETIME('now', 'localtime'))`,
+	              [code, normalizedEmail]
+	            )
+	            generatedCodes.push(code)
+	            success = true
+	          } catch (err) {
+            if (err.message.includes('UNIQUE')) {
+              // 如果重复，重新生成
+              code = generateRedemptionCode()
+              attempts++
+            } else {
+              throw err
+            }
+          }
+        }
+      }
 
       saveDatabase()
 
@@ -317,11 +350,11 @@ router.post('/', apiKeyAuth, async (req, res) => {
 
       return res.status(201).json({
         success: true,
-        message: '自动上车成功，账号已添加到系统',
+        message: '自动上车成功！账号已添加到系统',
         action: 'created',
         account: responseAccount,
         generatedCodes,
-        codesMessage: '新版本已取消账号创建时自动绑定兑换码',
+        codesMessage: `已自动生成${generatedCodes.length}个兑换码`,
         syncResult,
         removedUsers
       })
@@ -335,16 +368,16 @@ router.post('/', apiKeyAuth, async (req, res) => {
   }
 })
 
-// 鑾峰彇鑷姩涓婅溅缁熻淇℃伅锛堝彲閫夛級
+// 获取自动上车统计信息（可选）
 router.get('/stats', apiKeyAuth, async (req, res) => {
   try {
     const db = await getDatabase()
 
-    // 鑾峰彇鎬昏处鍙锋暟
+    // 获取总账号数
     const totalResult = db.exec('SELECT COUNT(*) as count FROM gpt_accounts')
     const total = totalResult[0]?.values[0]?.[0] || 0
 
-    // 鑾峰彇鏈€杩?4灏忔椂鏂板鐨勮处鍙锋暟
+    // 获取最近24小时新增的账号数
     const recentResult = db.exec(`
       SELECT COUNT(*) as count
       FROM gpt_accounts
@@ -363,7 +396,7 @@ router.get('/stats', apiKeyAuth, async (req, res) => {
     console.error('Get stats error:', error)
     res.status(500).json({
       error: 'Internal server error',
-      message: '鑾峰彇缁熻淇℃伅澶辫触'
+      message: '获取统计信息失败'
     })
   }
 })

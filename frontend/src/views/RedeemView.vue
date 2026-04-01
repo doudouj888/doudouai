@@ -1,178 +1,84 @@
 <template>
-  <RedeemShell>
-    <div class="text-center space-y-6">
-      <div class="inline-flex items-center gap-2.5 rounded-full bg-white/60 dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/10 px-4 py-1.5 shadow-sm transition-transform hover:scale-105 duration-300 cursor-default">
-        <span class="relative flex h-2.5 w-2.5">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#007AFF]"></span>
-        </span>
-        <span class="text-[13px] font-medium text-gray-600 dark:text-gray-300 tracking-wide">自动发邀请 · 验证码一次性</span>
-      </div>
+  <RedeemShell max-width="max-w-[420px]">
+    <section class="redeem-page">
+      <div class="redeem-panel">
+        <header class="panel-header">
+          <p class="panel-kicker">通用兑换</p>
+          <h1>卡密兑换</h1>
+          <p class="panel-copy">填写卡密和邮箱后提交即可。</p>
+        </header>
 
-      <div class="space-y-3">
-        <h1 class="text-[40px] leading-tight font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 drop-shadow-sm animate-gradient-x">
-          ChatGPT 账号兑换
-        </h1>
-      </div>
-    </div>
+        <form class="redeem-form" @submit.prevent="handleRedeem()">
+          <div class="field-group">
+            <label>邮箱</label>
+            <AppleInput
+              v-model.trim="formData.email"
+              type="email"
+              placeholder="name@example.com"
+              variant="filled"
+              :disabled="isLoading"
+              :error="formData.email && !isValidEmail ? '请输入有效的邮箱地址' : ''"
+              autocomplete="email"
+              auto-focus
+            />
+          </div>
 
-    <div class="relative group perspective-1000">
-      <div class="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
-      <AppleCard
-        variant="glass"
-        class="relative overflow-hidden shadow-2xl shadow-black/10 border border-white/40 dark:border-white/10 ring-1 ring-black/5 backdrop-blur-3xl transition-all duration-500 hover:shadow-3xl hover:scale-[1.01] animate-float"
-      >
-        <div class="p-8 sm:p-10 space-y-8">
-          <form @submit.prevent="handleRedeem()" class="space-y-8">
-            <div
-              class="space-y-2 group animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100 fill-mode-backwards"
-              :class="{ 'animate-shake': errorMessage && !formData.email }"
-            >
-              <AppleInput
-                v-model.trim="formData.email"
-                label="邮箱地址"
-                placeholder="name@example.com"
-                type="email"
-                variant="filled"
-                :disabled="isLoading"
-                helperText="请填写 ChatGPT 账号邮箱，用于接收邀请邮件"
-                :error="formData.email && !isValidEmail ? '请输入有效的邮箱格式' : ''"
-                class="transition-all duration-300 group-hover:translate-x-1"
-              />
-            </div>
+          <div class="field-group">
+            <label>卡密</label>
+            <AppleInput
+              v-model="formData.code"
+              type="text"
+              placeholder="XXXX-XXXX-XXXX"
+              variant="filled"
+              :disabled="isLoading"
+              :error="formData.code && !isValidCode ? '卡密格式不正确' : ''"
+              autocomplete="off"
+              @input="handleCodeInput"
+            />
+          </div>
 
-            <div
-              class="space-y-2 group animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-backwards"
-              :class="{ 'animate-shake': errorMessage && !formData.code }"
-            >
-              <AppleInput
-                v-model="formData.code"
-                label="兑换码"
-                placeholder="XXXX-XXXX-XXXX"
-                type="text"
-                variant="filled"
-                :disabled="isLoading"
-                helperText="格式：XXXX-XXXX-XXXX（自动转大写）"
-                :error="formData.code && !isValidCode ? '兑换码格式应为 XXXX-XXXX-XXXX' : ''"
-                @input="handleCodeInput"
-                class="transition-all duration-300 group-hover:translate-x-1"
-              />
-            </div>
+          <div v-if="successInfo" class="feedback-card success-card">
+            <p class="feedback-title">兑换成功</p>
+            <p class="feedback-text">
+              {{ successInfo.message || '兑换已提交成功，请留意邮箱通知。' }}
+            </p>
+          </div>
 
-            <div class="pt-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-backwards">
-              <AppleButton
-                type="submit"
-                variant="primary"
-                size="lg"
-                class="w-full h-[50px] text-[17px] font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                :loading="isLoading"
-                :disabled="isLoading"
-              >
-                {{ isLoading ? '正在兑换...' : '立即兑换' }}
-              </AppleButton>
-            </div>
+          <div v-if="errorMessage" class="feedback-card error-card">
+            <p class="feedback-title">提交失败</p>
+            <p class="feedback-text">{{ errorMessage }}</p>
+          </div>
 
-            <div class="flex justify-center animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-backwards">
-              <RouterLink
-                to="/buy"
-                class="inline-flex items-center rounded-full border border-[#007AFF]/20 bg-[#007AFF]/8 px-4 py-2 text-sm font-medium text-[#007AFF] transition hover:border-[#007AFF]/35 hover:bg-[#007AFF]/12 hover:text-[#005FCC]"
-              >
-                没有兑换码？前往购买
-              </RouterLink>
-            </div>
-          </form>
-
-          <div
-            v-if="successInfo"
-            class="absolute inset-0 z-20 flex items-center justify-center p-6 bg-white/60 dark:bg-black/60 backdrop-blur-md rounded-[2rem] animate-in fade-in duration-300"
+          <AppleButton
+            type="submit"
+            variant="primary"
+            size="lg"
+            class-name="redeem-submit"
+            :loading="isLoading"
+            :disabled="isLoading"
           >
-            <div class="w-full rounded-2xl bg-[#34C759]/10 border border-[#34C759]/20 p-5 flex gap-4 shadow-lg backdrop-blur-xl">
-              <div class="flex-shrink-0 mt-0.5">
-                <div class="h-6 w-6 rounded-full bg-[#34C759] flex items-center justify-center shadow-sm">
-                  <CheckCircle2 class="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div class="flex-1 space-y-3">
-                <h3 class="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">兑换成功！</h3>
-                <div class="text-[14px] text-[#1d1d1f]/80 dark:text-white/80 space-y-3">
-                  <p>您已成功兑换并加入 ChatGPT Team 账号。</p>
-                  <div class="bg-white/50 dark:bg-black/20 rounded-xl p-3 border border-black/5 dark:border-white/10 space-y-1.5">
-                    <p class="flex justify-between">
-                      <span class="text-[#86868b]">当前成员数</span>
-                      <span class="font-medium tabular-nums">{{ successInfo.userCount }} / {{ successInfo.maxCapacity ?? 5 }}</span>
-                    </p>
-                    <p v-if="successInfo.inviteStatus" class="flex justify-between items-center">
-                      <span class="text-[#86868b]">邀请状态</span>
-                      <span
-                        class="px-2 py-0.5 rounded-md text-[12px] font-medium"
-                        :class="successInfo.inviteStatus.includes('已发送') ? 'bg-[#34C759]/10 text-[#34C759]' : 'bg-[#FF9F0A]/10 text-[#FF9F0A]'"
-                      >
-                        {{ successInfo.inviteStatus }}
-                      </span>
-                    </p>
-                  </div>
-                  <p class="text-[13px] leading-normal text-[#86868b]">
-                    <template v-if="successInfo.inviteStatus && successInfo.inviteStatus.includes('已发送')">
-                      请查看邮箱并接收邀请邮件，然后登录 ChatGPT 使用。
-                    </template>
-                    <template v-else>
-                      如未收到自动邀请，请联系管理员手动添加。
-                    </template>
-                  </p>
-                  <div class="pt-1">
-                    <button
-                      type="button"
-                      class="text-xs text-[#007AFF] hover:text-[#005FCC] font-medium transition"
-                      @click="successInfo = null"
-                    >
-                      继续兑换
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            {{ isLoading ? '兑换中...' : '立即兑换' }}
+          </AppleButton>
+        </form>
 
-          <div v-if="errorMessage" class="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out-expo">
-            <div class="rounded-2xl bg-[#FF3B30]/10 border border-[#FF3B30]/20 p-5 flex gap-4">
-              <div class="flex-shrink-0 mt-0.5">
-                <div class="h-6 w-6 rounded-full bg-[#FF3B30] flex items-center justify-center shadow-sm">
-                  <AlertCircle class="h-4 w-4 text-white" />
-                </div>
-              </div>
-              <div class="flex-1">
-                <h3 class="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">兑换失败</h3>
-                <p class="mt-1 text-[14px] text-[#1d1d1f]/80 dark:text-white/80">{{ errorMessage }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-6 border-t border-gray-200/60 dark:border-white/10">
-            <h4 class="text-[13px] font-semibold text-[#86868b] uppercase tracking-wider mb-4">使用提示</h4>
-            <ul class="space-y-3 text-[14px] text-[#1d1d1f]/70 dark:text-white/70">
-              <li class="flex items-start gap-3">
-                <span class="h-1.5 w-1.5 rounded-full bg-[#007AFF] mt-2 flex-shrink-0"></span>
-                <span>每个兑换码只能使用一次。</span>
-              </li>
-              <li class="flex items-start gap-3">
-                <span class="h-1.5 w-1.5 rounded-full bg-[#007AFF] mt-2 flex-shrink-0"></span>
-                <span>未收到邮件请检查垃圾箱/联系管理员。</span>
-              </li>
-            </ul>
-          </div>
+        <div class="tips-block">
+          <p class="tips-title">提示</p>
+          <ul class="tips-list">
+            <li>请确认邮箱填写正确，兑换结果会发送到该邮箱。</li>
+            <li>若提示卡密无效或已使用，请联系管理员处理。</li>
+            <li>填完卡密后若未收到邀请链接，可重新登录账号查看空间是否已添加。</li>
+          </ul>
         </div>
-      </AppleCard>
-    </div>
+      </div>
+    </section>
   </RedeemShell>
 </template>
 
 <script setup lang="ts">
 import AppleButton from '@/components/ui/apple/Button.vue'
-import AppleCard from '@/components/ui/apple/Card.vue'
 import AppleInput from '@/components/ui/apple/Input.vue'
 import RedeemShell from '@/components/RedeemShell.vue'
 import { useRedeemForm } from '@/composables/useRedeemForm'
-import { AlertCircle, CheckCircle2 } from 'lucide-vue-next'
 
 const {
   formData,
@@ -187,70 +93,188 @@ const {
 </script>
 
 <style scoped>
-.ease-out-expo {
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+.redeem-page {
+  min-height: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.75rem 0 1.5rem;
 }
 
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
+.redeem-panel {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 28px;
+  padding: 32px 28px 24px;
+  margin-top: 1.5rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
+  backdrop-filter: blur(22px);
+}
+
+.panel-header {
+  text-align: center;
+  margin-bottom: 22px;
+  color: #0f172a;
+}
+
+.panel-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.panel-copy {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.redeem-form {
+  display: grid;
+  gap: 14px;
+}
+
+.field-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.feedback-card {
+  border-radius: 16px;
+  padding: 13px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  color: #0f172a;
+}
+
+.feedback-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.feedback-text {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.success-card {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: #166534;
+}
+
+.error-card {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+
+:deep(.redeem-submit) {
+  width: 100%;
+  height: 52px;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(0, 122, 255, 0.18);
+}
+
+.tips-block {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.tips-title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.tips-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.tips-list li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.tips-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.tips-list li + li {
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .redeem-page {
+    min-height: auto;
   }
-  25% {
-    transform: translateX(-4px);
+
+  .redeem-panel {
+    padding: 26px 20px 22px;
+    margin-top: 2rem;
+    border-radius: 24px;
   }
-  75% {
-    transform: translateX(4px);
-  }
-}
 
-.animate-shake {
-  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.delay-100 {
-  animation-delay: 100ms;
-}
-
-.delay-200 {
-  animation-delay: 200ms;
-}
-
-.delay-300 {
-  animation-delay: 300ms;
-}
-
-.fill-mode-backwards {
-  animation-fill-mode: backwards;
-}
-.animate-gradient-x {
-  background-size: 200% 200%;
-  animation: gradient-x 8s ease infinite;
-}
-
-@keyframes gradient-x {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
+  .panel-header h1 {
+    font-size: 26px;
   }
 }
 
-.animate-float {
-  animation: float-card 6s ease-in-out infinite;
-}
-
-@keyframes float-card {
-  0%, 100% {
-    transform: translateY(0);
+@media (max-width: 480px) {
+  .redeem-page {
+    align-items: flex-start;
+    padding: 0.5rem 0 1.5rem;
   }
-  50% {
-    transform: translateY(-10px);
-  }
-}
 
-.perspective-1000 {
-  perspective: 1000px;
+  .redeem-panel {
+    padding: 22px 18px 20px;
+    border-radius: 20px;
+    margin-top: 2.5rem;
+  }
+
+  .redeem-form {
+    gap: 12px;
+  }
+
+  :deep(.redeem-submit) {
+    height: 48px;
+  }
 }
 </style>

@@ -27,17 +27,19 @@ const mapCodeRow = (row) => {
   }
 }
 
-export const reserveOpenAccountsCode = (db, { orderNo, email }) => {
-  if (!db || !orderNo || !email) return null
+export const reserveOpenAccountsCode = (db, { orderNo, accountEmail, email }) => {
+  if (!db || !orderNo || !accountEmail || !email) return null
   const channels = getOpenAccountsCodeChannels()
   const placeholders = channels.map(() => '?').join(',')
+  const normalizedAccount = normalizeEmail(accountEmail)
   const result = db.exec(
     `
 	      SELECT id, code, account_email, channel, is_redeemed, redeemed_by
 	      FROM redemption_codes
 	      WHERE is_redeemed = 0
 	        AND COALESCE(is_downstream_sold, 0) = 0
-	        AND COALESCE(NULLIF(LOWER(TRIM(status)), ''), 'unused') = 'unused'
+	        AND account_email IS NOT NULL
+	        AND lower(trim(account_email)) = ?
 	        AND channel IN (${placeholders})
 	        AND (reserved_for_uid IS NULL OR reserved_for_uid = '')
         AND (reserved_for_order_no IS NULL OR reserved_for_order_no = '')
@@ -45,7 +47,7 @@ export const reserveOpenAccountsCode = (db, { orderNo, email }) => {
       ORDER BY created_at ASC
       LIMIT 1
     `,
-    [...channels]
+    [normalizedAccount, ...channels]
   )
 
   const row = result[0]?.values?.[0]
@@ -140,8 +142,8 @@ export const ensureOpenAccountsOrderCode = (db, { orderNo, accountEmail, email }
     return reserved
   }
 
-  if (!email) return null
-  const reservedNow = reserveOpenAccountsCode(db, { orderNo, email })
+  if (!accountEmail || !email) return null
+  const reservedNow = reserveOpenAccountsCode(db, { orderNo, accountEmail, email })
   if (reservedNow) {
     attachOpenAccountsCodeToOrder(db, orderNo, reservedNow)
   }

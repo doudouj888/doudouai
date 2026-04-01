@@ -250,8 +250,7 @@ function selectAccountForCode(db, accountEmail) {
              client_profile_key, client_user_agent, client_accept_language, client_oai_language
       FROM gpt_accounts
       WHERE email = ?
-        AND COALESCE(is_banned, 0) = 0
-        AND COALESCE(user_count, 0) + COALESCE(invite_count, 0) + COALESCE(reserved_slots, 0) < COALESCE(max_capacity, 5)
+        AND COALESCE(user_count, 0) + COALESCE(invite_count, 0) < 6
       LIMIT 1
       `,
       [accountEmail]
@@ -267,9 +266,8 @@ function selectAccountForCode(db, accountEmail) {
       SELECT id, email, token, user_count, chatgpt_account_id, oai_device_id,
              client_profile_key, client_user_agent, client_accept_language, client_oai_language
       FROM gpt_accounts
-      WHERE COALESCE(is_banned, 0) = 0
-        AND COALESCE(user_count, 0) + COALESCE(invite_count, 0) + COALESCE(reserved_slots, 0) < COALESCE(max_capacity, 5)
-      ORDER BY COALESCE(last_assigned_at, updated_at, created_at) ASC, RANDOM()
+      WHERE COALESCE(user_count, 0) + COALESCE(invite_count, 0) < 6
+      ORDER BY COALESCE(user_count, 0) + COALESCE(invite_count, 0) ASC, RANDOM()
       LIMIT 1
     `
   )

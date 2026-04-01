@@ -348,8 +348,6 @@ export interface GptAccount {
   refreshToken?: string
   userCount: number
   inviteCount?: number
-  maxCapacity?: number
-  reservedSlots?: number
   isOpen?: boolean
   /** @deprecated 降级账号概念已移除；该字段仅保留用于兼容历史客户端。 */
   isDemoted?: boolean
@@ -367,7 +365,6 @@ export interface CreateGptAccountDto {
   token: string
   refreshToken?: string
   userCount?: number
-  maxCapacity?: number
   /** @deprecated 降级账号概念已移除；该字段仅保留用于兼容历史客户端（会被忽略）。 */
   isDemoted?: boolean
   isBanned?: boolean
@@ -509,14 +506,6 @@ export interface RedemptionCode {
   redeemedAt?: string
   redeemedBy?: string
   accountEmail?: string
-  assignedAccountEmail?: string | null
-  assignedAccountId?: number | null
-  activatedEmail?: string | null
-  activatedAt?: string | null
-  status?: string
-  prefix?: string | null
-  batchNo?: string | null
-  lastError?: string | null
   // Whether the bound GPT account is marked as banned (server may omit in older versions).
   accountIsBanned?: boolean
   channel: RedemptionChannel
@@ -543,7 +532,6 @@ export interface RedemptionCode {
 export interface AccountRecoveryData {
   accountEmail: string
   userCount?: number | null
-  maxCapacity?: number | null
   inviteStatus?: string
   recoveryMode?: 'original' | 'open-account' | 'not-needed'
   windowEndsAt?: string | null
@@ -948,9 +936,6 @@ export interface BatchCreateResponse {
   message: string
   codes: RedemptionCode[]
   failed: number
-  prefix?: string | null
-  batchNo?: string | null
-  generatedCount?: number
 }
 
 export interface AdminEmailDomainWhitelistResponse {
@@ -2199,13 +2184,8 @@ export const redemptionCodeService = {
     return response.data
   },
 
-  async batchCreate(payload: { count: number; prefix?: string; batchNo?: string; channel?: RedemptionChannel }): Promise<BatchCreateResponse> {
-    const response = await api.post('/redemption-codes/batch', {
-      count: payload.count,
-      ...(payload.prefix ? { prefix: payload.prefix } : {}),
-      ...(payload.batchNo ? { batchNo: payload.batchNo } : {}),
-      ...(payload.channel ? { channel: payload.channel } : {})
-    })
+  async batchCreate(count: number, accountEmail: string, channel?: RedemptionChannel): Promise<BatchCreateResponse> {
+    const response = await api.post('/redemption-codes/batch', { count, accountEmail, ...(channel ? { channel } : {}) })
     return response.data
   },
 
@@ -2215,6 +2195,11 @@ export const redemptionCodeService = {
 
   async batchDelete(ids: number[]): Promise<void> {
     await api.post('/redemption-codes/batch-delete', { ids })
+  },
+
+  async batchDeleteByCodes(codesText: string): Promise<{ message: string; deleted: number; matched: number; missing: string[] }> {
+    const response = await api.post('/redemption-codes/batch-delete-by-codes', { codesText })
+    return response.data
   },
 
   async importExternal(data: { channel: string; codesText: string }): Promise<{
@@ -2346,6 +2331,12 @@ export const redemptionCodeService = {
 
 export interface AdminStatsOverviewResponse {
   range: { from: string; to: string }
+  invites: {
+    today: number
+    yesterday: number
+    month: number
+    total: number
+  }
   users: {
     total: number
     created: number

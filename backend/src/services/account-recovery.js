@@ -136,6 +136,7 @@ export function selectRecoveryCode(
   db,
   {
     minExpireMs,
+    capacityLimit = 6,
     preferNonToday = true,
     preferLatestExpire = false,
     limit = 200,
@@ -149,6 +150,8 @@ export function selectRecoveryCode(
   const nowMs = Date.now()
   const parsedMinExpireMs = Number(minExpireMs)
   const effectiveMinExpireMs = Math.max(nowMs, Number.isFinite(parsedMinExpireMs) ? parsedMinExpireMs : nowMs)
+  const effectiveMinExpireSeconds = Math.floor(effectiveMinExpireMs / 1000)
+  const maxSeats = Math.max(1, Number(capacityLimit) || 6)
   const queryLimit = Math.min(500, Math.max(1, toInt(limit, 200)))
   const createdWithinDays = Math.min(365, Math.max(1, toInt(codeCreatedWithinDays, 7)))
   const createdSinceOffsetDays = Math.max(0, createdWithinDays - 1)
@@ -168,8 +171,8 @@ export function selectRecoveryCode(
       )
     : null
   const orderSql = preferLatestExpire
-    ? 'ORDER BY rc.created_at ASC, rc.id ASC'
-    : 'ORDER BY is_today ASC, rc.created_at ASC, rc.id ASC'
+    ? 'ORDER BY ga.expire_at DESC, occupancy ASC, rc.id ASC'
+    : 'ORDER BY is_today ASC, ga.expire_at ASC, occupancy ASC, rc.id ASC'
 
   const recoveryCodeResult = db.exec(
     `
@@ -177,23 +180,35 @@ export function selectRecoveryCode(
         rc.id,
         rc.code,
         rc.account_email,
-        rc.created_at,
-        CASE WHEN DATE(rc.created_at) = DATE('now', 'localtime') THEN 1 ELSE 0 END AS is_today,
-        0 AS occupancy
+        ga.expire_at,
+        CASE WHEN DATE(ga.created_at) = DATE('now', 'localtime') THEN 1 ELSE 0 END AS is_today,
+        COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) AS occupancy
       FROM redemption_codes rc
+      JOIN gpt_accounts ga ON lower(trim(ga.email)) = lower(trim(rc.account_email))
       WHERE rc.is_redeemed = 0
-        AND COALESCE(NULLIF(LOWER(TRIM(rc.status)), ''), 'unused') = 'unused'
         AND COALESCE(rc.is_downstream_sold, 0) = 0
         AND ${buildAccountRecoveryEligibleCodeSql('rc')}
+        AND rc.account_email IS NOT NULL
+        AND trim(rc.account_email) != ''
         AND COALESCE(NULLIF(lower(trim(rc.channel)), ''), 'common') = 'common'
         AND rc.created_at >= DATETIME(DATE('now', 'localtime', ?))
         AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
         AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
         AND (rc.reserved_for_uid IS NULL OR rc.reserved_for_uid = '')
+        AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) < ?
+        AND COALESCE(ga.is_open, 0) = 1
+        AND COALESCE(ga.is_banned, 0) = 0
+        AND ga.token IS NOT NULL
+        AND trim(ga.token) != ''
+        AND ga.chatgpt_account_id IS NOT NULL
+        AND trim(ga.chatgpt_account_id) != ''
+        AND ga.expire_at IS NOT NULL
+        AND trim(ga.expire_at) != ''
+        AND DATETIME(REPLACE(ga.expire_at, '/', '-')) >= DATETIME(?, 'unixepoch', 'localtime')
       ${orderSql}
       LIMIT ?
     `,
-    [createdSinceModifier, queryLimit]
+    [createdSinceModifier, maxSeats, effectiveMinExpireSeconds, queryLimit]
   )
 
   const rows = recoveryCodeResult?.[0]?.values || []
@@ -205,15 +220,17 @@ export function selectRecoveryCode(
     const recoveryCodeId = Number(row[0])
     const recoveryCode = String(row[1] || '').trim()
     const recoveryAccountEmail = String(row[2] || '').trim()
-    const expireAtMs = effectiveMinExpireMs + 24 * 60 * 60 * 1000
-    const expireAtRaw = new Date(expireAtMs).toISOString()
+    const expireAtRaw = row[3] ? String(row[3]).trim() : ''
     const isToday = Number(row[4] || 0) === 1
     const occupancy = Number(row[5] || 0)
     const normalizedRecoveryAccountEmail = normalizeEmail(recoveryAccountEmail)
 
-    if (!recoveryCodeId || !recoveryCode || !expireAtRaw) continue
+    if (!recoveryCodeId || !recoveryCode || !recoveryAccountEmail || !expireAtRaw) continue
     if (excludedCodeIds && excludedCodeIds.has(recoveryCodeId)) continue
-    if (normalizedRecoveryAccountEmail && excludedAccountEmails && excludedAccountEmails.has(normalizedRecoveryAccountEmail)) continue
+    if (excludedAccountEmails && excludedAccountEmails.has(normalizedRecoveryAccountEmail)) continue
+
+    const expireAtMs = parseExpireAtToMs(expireAtRaw)
+    if (expireAtMs == null || expireAtMs < effectiveMinExpireMs) continue
 
     candidates.push({
       recoveryCodeId,
@@ -244,38 +261,4 @@ export function selectRecoveryCode(
   })
 
   return pool[0] || null
-}
-
-export function countAvailableRecoveryCodes(
-  db,
-  {
-    codeCreatedWithinDays = 7,
-    channel = 'common'
-  } = {}
-) {
-  if (!db) return 0
-
-  const createdWithinDaysSafe = Math.min(365, Math.max(1, toInt(codeCreatedWithinDays, 7)))
-  const createdSinceOffsetDays = Math.max(0, createdWithinDaysSafe - 1)
-  const createdSinceModifier = `-${createdSinceOffsetDays} day`
-  const normalizedChannel = String(channel || 'common').trim().toLowerCase() || 'common'
-
-  const result = db.exec(
-    `
-      SELECT COUNT(*)
-      FROM redemption_codes rc
-      WHERE rc.is_redeemed = 0
-        AND COALESCE(NULLIF(LOWER(TRIM(rc.status)), ''), 'unused') = 'unused'
-        AND COALESCE(rc.is_downstream_sold, 0) = 0
-        AND ${buildAccountRecoveryEligibleCodeSql('rc')}
-        AND COALESCE(NULLIF(LOWER(TRIM(rc.channel)), ''), 'common') = ?
-        AND rc.created_at >= DATETIME(DATE('now', 'localtime', ?))
-        AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
-        AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
-        AND (rc.reserved_for_uid IS NULL OR rc.reserved_for_uid = '')
-    `,
-    [normalizedChannel, createdSinceModifier]
-  )
-
-  return Number(result?.[0]?.values?.[0]?.[0] || 0)
 }

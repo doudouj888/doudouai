@@ -274,10 +274,13 @@ const isExternalCardRedeemMode = (channelConfig) => String(channelConfig?.redeem
 const CODE_PROCESSING_TIMEOUT_MS = Math.max(30_000, toInt(process.env.REDEMPTION_CODE_PROCESSING_TIMEOUT_MS, 5 * 60 * 1000))
 
 // 标准化兑换码前缀
+const CODE_PREFIX_LENGTH = 4
 const normalizeCodePrefix = (value) => {
   const raw = String(value ?? '').trim()
   if (!raw) return ''
-  return raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24)
+  const filtered = raw.replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase()
+  if (filtered.length !== CODE_PREFIX_LENGTH) return ''
+  return filtered
 }
 
 function generateRedemptionCode(length = 12, prefix = '') {
@@ -1918,7 +1921,10 @@ router.post('/:id/upstream-check', authenticateToken, requireMenu('redemption_co
 router.post('/batch', authenticateToken, requireMenu('redemption_codes'), async (req, res) => {
   try {
     const { count, accountEmail, channel } = req.body
-    const requestedPrefix = normalizeCodePrefix(req.body?.prefix)
+        const requestedPrefix = normalizeCodePrefix(req.body?.prefix)
+        if (req.body?.prefix && !requestedPrefix) {
+          return res.status(400).json({ error: `前缀必须是 ${CODE_PREFIX_LENGTH} 个字母/数字` })
+        }
     const requestedBatchNo = String(req.body?.batchNo ?? req.body?.batch_no ?? '').trim() || null
     {
       const requestedCount = toInt(count, 0)

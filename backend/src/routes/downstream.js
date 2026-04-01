@@ -207,25 +207,22 @@ const getDownstreamAvailabilitySql = () => `
   FROM redemption_codes rc
   JOIN channels ch
     ON LOWER(TRIM(ch.key)) = COALESCE(NULLIF(LOWER(TRIM(rc.channel)), ''), 'common')
+  LEFT JOIN gpt_accounts ga
+    ON LOWER(TRIM(ga.email)) = LOWER(TRIM(rc.account_email))
   WHERE ch.is_active = 1
     AND COALESCE(ch.allow_downstream_sale, 0) = 1
     AND LOWER(TRIM(COALESCE(ch.redeem_mode, ''))) IN ('code', 'external-card')
     AND rc.is_redeemed = 0
-    AND COALESCE(NULLIF(LOWER(TRIM(rc.status)), ''), 'unused') = 'unused'
     AND COALESCE(rc.is_downstream_sold, 0) = 0
     AND (rc.reserved_for_order_no IS NULL OR rc.reserved_for_order_no = '')
     AND (rc.reserved_for_entry_id IS NULL OR rc.reserved_for_entry_id = 0)
     AND (
       LOWER(TRIM(COALESCE(ch.redeem_mode, ''))) = 'external-card'
       OR (
-        EXISTS (
-          SELECT 1
-          FROM gpt_accounts ga
-          WHERE ga.is_open = 1
-            AND COALESCE(ga.is_banned, 0) = 0
-            AND COALESCE(ga.user_count, 0) + COALESCE(ga.invite_count, 0) + COALESCE(ga.reserved_slots, 0) < COALESCE(ga.max_capacity, 5)
-            AND DATE(ga.created_at) = DATE('now', 'localtime')
-        )
+        rc.account_email IS NOT NULL
+        AND ga.is_open = 1
+        AND ga.user_count < 6
+        AND DATE(ga.created_at) = DATE('now', 'localtime')
       )
     )
     AND (

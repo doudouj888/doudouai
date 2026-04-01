@@ -1,7 +1,7 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authService, configService, redemptionCodeService, gptAccountService, type RedemptionCode, type GptAccount, type PurchaseOrderType, type SyncUserCountResponse, type ChatgptAccountInviteItem, type Channel, type RedemptionChannel } from '@/services/api'
+import { authService, configService, redemptionCodeService, gptAccountService, type RedemptionCode, type GptAccount, type PurchaseOrderType, type SyncUserCountResponse, type ChatgptAccountInviteItem, type Channel } from '@/services/api'
 import { formatShanghaiDate } from '@/lib/datetime'
 import { useAppConfigStore } from '@/stores/appConfig'
 import {
@@ -39,8 +39,7 @@ const error = ref('')
 const teleportReady = ref(false)
 const showBatchDialog = ref(false)
 const batchCount = ref(10)
-const batchPrefix = ref('')
-const batchNo = ref('')
+const selectedAccountEmail = ref('')
 const selectedBatchChannel = ref('common')
 const creating = ref(false)
 const selectedCodes = ref<number[]>([])
@@ -89,6 +88,10 @@ const showImportExternalDialog = ref(false)
 const importExternalChannel = ref('')
 const importExternalCodesText = ref('')
 const importingExternal = ref(false)
+const showDestroyCodesDialog = ref(false)
+const destroyCodesText = ref('')
+const destroyingByCodes = ref(false)
+const destroyCodesFileInput = ref<HTMLInputElement | null>(null)
 const checkingUpstreamCodeIds = ref<number[]>([])
 let popoverTimer: ReturnType<typeof setTimeout> | null = null
 const { success: showSuccessToast, info: showInfoToast, warning: showWarningToast, error: showErrorToast } = useToast()
@@ -229,7 +232,7 @@ const reservationLabel = (code: RedemptionCode) => {
   if (code.reservedForUid) {
     segments.push(`UID ${code.reservedForUid}`)
   }
-  return segments.length ? segments.join(' 路 ') : '鍊欒溅缁戝畾'
+  return segments.length ? segments.join(' · ') : '候车绑定'
 }
 const extractRedeemerEmail = (redeemedBy?: string | null) => {
   const raw = String(redeemedBy ?? '').trim()
@@ -282,7 +285,7 @@ const handleStatusTooltipEnter = (code: RedemptionCode, event: MouseEvent) => {
 }
 
 const getChannelLabel = (value?: string) => {
-  const fallback = channelOptions.value[0]?.label || '閫氱敤娓犻亾'
+  const fallback = channelOptions.value[0]?.label || '通用渠道'
   if (!value) return fallback
   return channelOptionsMap.value.get(value) || fallback
 }
@@ -542,8 +545,7 @@ const truncateText = (text?: string | null, maxLength: number = 20) => {
 
 const openBatchDialog = () => {
   batchCount.value = 10
-  batchPrefix.value = ''
-  batchNo.value = ''
+  selectedAccountEmail.value = accounts.value.length > 0 ? (accounts.value[0]?.email || '') : ''
   selectedBatchChannel.value = batchChannelOptions.value[0]?.value || 'common'
   showBatchDialog.value = true
 }
@@ -551,8 +553,7 @@ const openBatchDialog = () => {
 const closeBatchDialog = () => {
   showBatchDialog.value = false
   batchCount.value = 10
-  batchPrefix.value = ''
-  batchNo.value = ''
+  selectedAccountEmail.value = ''
   selectedBatchChannel.value = batchChannelOptions.value[0]?.value || 'common'
 }
 
@@ -572,6 +573,67 @@ const closeImportExternalDialog = () => {
   importExternalChannel.value = externalImportChannelOptions.value[0]?.value || ''
   importExternalCodesText.value = ''
   importingExternal.value = false
+}
+
+const openDestroyCodesDialog = () => {
+  destroyCodesText.value = ''
+  showDestroyCodesDialog.value = true
+}
+
+const closeDestroyCodesDialog = () => {
+  showDestroyCodesDialog.value = false
+  destroyCodesText.value = ''
+  destroyingByCodes.value = false
+  if (destroyCodesFileInput.value) {
+    destroyCodesFileInput.value.value = ''
+  }
+}
+
+const triggerDestroyCodesFilePicker = () => {
+  destroyCodesFileInput.value?.click()
+}
+
+const handleDestroyCodesFileChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) return
+
+  try {
+    const text = await file.text()
+    destroyCodesText.value = destroyCodesText.value.trim()
+      ? `${destroyCodesText.value.trim()}\n${text.trim()}`
+      : text.trim()
+    showInfoToast(`已导入文件：${file.name}`)
+  } catch (err) {
+    console.error('读取销毁卡密文件失败:', err)
+    showErrorToast('读取文件失败，请重试')
+  } finally {
+    if (input) input.value = ''
+  }
+}
+
+const handleBatchDeleteByCodes = async () => {
+  if (!destroyCodesText.value.trim()) {
+    showWarningToast('请先输入要销毁的卡密，每行一个')
+    return
+  }
+
+  destroyingByCodes.value = true
+  try {
+    const result = await redemptionCodeService.batchDeleteByCodes(destroyCodesText.value)
+    await loadCodes()
+    closeDestroyCodesDialog()
+
+    if (result.missing?.length) {
+      showInfoToast(`已销毁 ${result.deleted} 个，未匹配 ${result.missing.length} 个`)
+      return
+    }
+    showSuccessToast(result.message || `成功销毁 ${result.deleted} 个卡密`)
+  } catch (err: any) {
+    showErrorToast(err.response?.data?.error || '批量销毁卡密失败')
+  } finally {
+    destroyingByCodes.value = false
+  }
 }
 
 const handleImportExternal = async () => {
@@ -611,6 +673,10 @@ const handleBatchCreate = async () => {
     return
   }
 
+  if (!selectedAccountEmail.value) {
+    error.value = '请选择所属账号'
+    return
+  }
   if (!selectedBatchChannel.value) {
     error.value = '请选择渠道'
     return
@@ -620,15 +686,11 @@ const handleBatchCreate = async () => {
   error.value = ''
 
   try {
-    const result = await redemptionCodeService.batchCreate({
-      count: batchCount.value,
-      prefix: batchPrefix.value.trim() || undefined,
-      batchNo: batchNo.value.trim() || undefined,
-      channel: selectedBatchChannel.value as RedemptionChannel
-    })
+    const result = await redemptionCodeService.batchCreate(batchCount.value, selectedAccountEmail.value, selectedBatchChannel.value)
     await loadCodes()
     closeBatchDialog()
 
+    // 显示成功提示
     showSuccessToast(`成功创建 ${result.codes.length} 个兑换码${result.failed > 0 ? `，失败 ${result.failed} 个` : ''}`)
   } catch (err: any) {
     error.value = err.response?.data?.error || '创建兑换码失败'
@@ -638,13 +700,13 @@ const handleBatchCreate = async () => {
 }
 
 const handleDelete = async (id: number) => {
-  if (!confirm('确定要销毁这个兑换码吗？')) return
+  if (!confirm('确定要删除这个兑换码吗？')) return
 
   try {
     await redemptionCodeService.delete(id)
     await loadCodes()
   } catch (err: any) {
-    error.value = err.response?.data?.error || '销毁兑换码失败'
+    error.value = err.response?.data?.error || '删除失败'
   }
 }
 
@@ -683,7 +745,7 @@ const handleReinvite = async (code: RedemptionCode) => {
 
 const handleCheckUpstreamCode = async (code: RedemptionCode) => {
   if (!canCheckUpstreamCode(code)) {
-    showWarningToast('当前兑换码未配置平台上游接口检查')
+    showWarningToast('当前兑换码未配置平台通用接口检查')
     return
   }
   if (isCheckingUpstream(code.id)) return
@@ -747,14 +809,14 @@ const handleBatchDelete = async () => {
     return
   }
 
-  if (!confirm(`确定要销毁选中的 ${selectedCodes.value.length} 个兑换码吗？`)) return
+  if (!confirm(`确定要删除选中的 ${selectedCodes.value.length} 个兑换码吗？`)) return
 
   try {
     await redemptionCodeService.batchDelete(selectedCodes.value)
     selectedCodes.value = []
     await loadCodes()
   } catch (err: any) {
-    error.value = err.response?.data?.error || '批量销毁兑换码失败'
+    error.value = err.response?.data?.error || '批量删除失败'
   }
 }
 
@@ -860,7 +922,7 @@ const exportCodes = async () => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `兑换码-${new Date().toISOString().split('T')[0]}.txt`
+    a.download = `兑换码_${new Date().toISOString().split('T')[0]}.txt`
     a.click()
     URL.revokeObjectURL(url)
   } catch (err: any) {
@@ -922,7 +984,7 @@ const handleRedeemInvite = async () => {
     await loadCodes()
     closeRedeemDialog()
   } catch (err: any) {
-    const message = err.response?.data?.message || err.response?.data?.error || '兑换失败，请稍后重试'
+    const message = err.response?.data?.message || err.response?.data?.error || '兑换失败，请稍后再试'
     showErrorToast(message)
   } finally {
     redeeming.value = false
@@ -991,7 +1053,7 @@ const refreshAccountSyncResult = async (accountId: number) => {
         ? latestResult.account.inviteCount
         : previousInviteCount.value
   } catch (err: any) {
-    const message = err.response?.data?.error || '删除成功，但重新同步失败，请稍后重试'
+    const message = err.response?.data?.error || '删除成功，但重新同步失败，请稍后再试'
     showErrorToast(message)
   }
 }
@@ -1135,6 +1197,10 @@ const handleInviteSubmit = async () => {
             <Upload class="mr-2 h-4 w-4" />
             导入外部卡密
           </Button>
+          <Button @click="openDestroyCodesDialog" variant="outline" class="h-10 bg-white border-red-200 text-red-600 hover:bg-red-50">
+            <Trash2 class="mr-2 h-4 w-4" />
+            按卡密批量销毁
+          </Button>
           <Button @click="openBatchDialog" class="h-10 bg-black hover:bg-gray-800 text-white rounded-xl shadow-lg shadow-black/10">
             <Plus class="mr-2 h-4 w-4" />
             批量生成
@@ -1175,7 +1241,7 @@ const handleInviteSubmit = async () => {
             class="h-10 rounded-xl px-4 shadow-sm"
           >
             <Trash2 class="mr-2 h-4 w-4" />
-            批量销毁 ({{ selectedCodes.length }})
+            批量删除 ({{ selectedCodes.length }})
           </Button>
         </div>
     </div>
@@ -1237,7 +1303,7 @@ const handleInviteSubmit = async () => {
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">兑换码</th>
                 <th class="px-6 py-5 text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">状态</th>
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">渠道</th>
-                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">已分配账号</th>
+                <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">所属账号</th>
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">兑换用户</th>
                 <th class="px-6 py-5 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">创建时间</th>
                 <th class="px-6 py-5 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider">操作</th>
@@ -1279,7 +1345,7 @@ const handleInviteSubmit = async () => {
                       v-if="!code.isRedeemed && isCodeReserved(code)"
                       class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 border border-orange-200"
                     >
-                      已预留
+                      已绑定
                     </span>
                   </div>
                 </td>
@@ -1291,7 +1357,7 @@ const handleInviteSubmit = async () => {
                    >
                      <SelectTrigger class="w-[140px] h-8 text-xs border-transparent bg-transparent hover:bg-white hover:border-gray-200 rounded-lg transition-all focus:ring-0">
                        <SelectValue
-                          placeholder="选择渠道"
+                         placeholder="选择渠道"
                          :display-text="code.channelName || getChannelLabel(code.channel)"
                        />
                      </SelectTrigger>
@@ -1390,7 +1456,7 @@ const handleInviteSubmit = async () => {
                       variant="ghost" 
                       class="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       @click="handleDelete(code.id)"
-                      title="销毁"
+                      title="删除"
                     >
                       <Trash2 class="w-4 h-4" />
                     </Button>
@@ -1426,7 +1492,7 @@ const handleInviteSubmit = async () => {
                     v-if="!code.isRedeemed && isCodeReserved(code)"
                     class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600 border border-orange-200"
                   >
-                    已预留
+                    已绑定
                   </span>
                 </div>
              </div>
@@ -1434,7 +1500,7 @@ const handleInviteSubmit = async () => {
              <div class="space-y-3 mb-4">
                 <div class="grid grid-cols-2 gap-4">
                    <div>
-                       <p class="text-xs text-gray-400 mb-1">渠道</p>
+                      <p class="text-xs text-gray-400 mb-1">渠道</p>
                       <Select
                          :model-value="code.channel || 'common'"
                          @update:modelValue="value => handleChannelChange(code, value)"
@@ -1453,7 +1519,7 @@ const handleInviteSubmit = async () => {
                      </Select>
                    </div>
                    <div>
-                      <p class="text-xs text-gray-400 mb-1">已分配账号</p>
+                      <p class="text-xs text-gray-400 mb-1">所属账号</p>
 	                      <button
 	                        v-if="code.accountEmail"
 	                        type="button"
@@ -1605,7 +1671,7 @@ const handleInviteSubmit = async () => {
             </div>
 
             <div class="flex items-center gap-8 md:gap-12 border-t md:border-t-0 md:border-l border-green-200/50 pt-4 md:pt-0 md:pl-8">
-              <!-- 褰撳墠浜烘暟 -->
+              <!-- 当前人数 -->
               <div class="text-right">
                 <p class="text-xs font-medium text-green-600/60 uppercase tracking-wider mb-1">当前人数</p>
                 <div class="flex items-baseline gap-1 justify-end">
@@ -1617,7 +1683,7 @@ const handleInviteSubmit = async () => {
                 </div>
               </div>
 
-              <!-- 寰呭姞鍏?-->
+              <!-- 待加入 -->
               <div class="text-right">
                 <p class="text-xs font-medium text-green-600/60 uppercase tracking-wider mb-1">待加入人数</p>
                 <div class="flex items-baseline gap-1 justify-end">
@@ -1625,7 +1691,7 @@ const handleInviteSubmit = async () => {
                     {{ previousInviteCount }} <span class="text-sm mx-0.5">→</span>
                   </span>
                   <span class="text-3xl font-bold text-green-600">{{ syncResult.inviteCount ?? 0 }}</span>
-                  <span class="text-sm text-green-600 font-medium">位</span>
+                  <span class="text-sm text-green-600 font-medium">待</span>
                 </div>
               </div>
             </div>
@@ -1769,60 +1835,56 @@ const handleInviteSubmit = async () => {
         <DialogHeader class="px-8 pt-8 pb-4">
           <DialogTitle class="text-2xl font-bold text-gray-900">批量生成兑换码</DialogTitle>
         </DialogHeader>
-
+        
         <div class="px-8 pb-8 space-y-6">
-          <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">前缀</Label>
-            <Input
-              v-model="batchPrefix"
-              maxlength="32"
-              placeholder="可选，例如 tao-"
-              class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
-            />
-            <p class="text-xs text-gray-400">可选；系统会自动清理非法字符。</p>
-          </div>
+           <div class="space-y-2">
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">所属账号</Label>
+              <Select v-model="selectedAccountEmail">
+                <SelectTrigger class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
+                  <SelectValue placeholder="选择账号" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="account in accounts" :key="account.id" :value="account.email">
+                    {{ account.email }} (当前{{ account.userCount }}人)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p class="text-xs text-gray-400">
+                可创建数量 = 6 - 当前人数 - 未使用的兑换码数。
+              </p>
+           </div>
 
-          <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">批次号</Label>
-            <Input
-              v-model="batchNo"
-              maxlength="64"
-              placeholder="可选，用于筛选和导出"
-              class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">渠道</Label>
-            <Select v-model="selectedBatchChannel">
-              <SelectTrigger class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
-                <SelectValue placeholder="选择渠道" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="channel in batchChannelOptions" :key="channel.value" :value="channel.value">
-                  {{ channel.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div class="space-y-2">
-            <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">生成数量</Label>
-            <Input
-              v-model.number="batchCount"
-              type="number"
-              min="1"
-              max="1000"
-              class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
-            />
-          </div>
+           <div class="space-y-2">
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">渠道</Label>
+                  <Select v-model="selectedBatchChannel">
+                <SelectTrigger class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500">
+                  <SelectValue placeholder="选择渠道" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="channel in batchChannelOptions" :key="channel.value" :value="channel.value">
+                    {{ channel.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+           </div>
+           
+           <div class="space-y-2">
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">生成数量</Label>
+              <Input
+                v-model.number="batchCount"
+                type="number"
+                min="1"
+                max="1000"
+                class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+              />
+           </div>
         </div>
 
         <DialogFooter class="px-8 pb-8 pt-0">
-          <Button variant="ghost" @click="closeBatchDialog" class="rounded-xl text-gray-500">取消</Button>
-          <Button @click="handleBatchCreate" :disabled="creating" class="rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 px-6">
-            {{ creating ? '生成中...' : '开始生成' }}
-          </Button>
+           <Button variant="ghost" @click="closeBatchDialog" class="rounded-xl text-gray-500">取消</Button>
+           <Button @click="handleBatchCreate" :disabled="creating" class="rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 px-6">
+             {{ creating ? '生成中...' : '开始生成' }}
+           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1855,7 +1917,7 @@ const handleInviteSubmit = async () => {
             <textarea
               v-model="importExternalCodesText"
               rows="10"
-               placeholder="每行一个卡密，支持任意非空字符"
+              placeholder="每行一个卡密，支持任意非空字符串"
               class="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-mono text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             ></textarea>
             <p class="text-xs text-gray-400">重复卡密会自动跳过并在导入结果中提示。</p>
@@ -1866,6 +1928,47 @@ const handleInviteSubmit = async () => {
           <Button variant="ghost" @click="closeImportExternalDialog" class="rounded-xl text-gray-500">取消</Button>
           <Button @click="handleImportExternal" :disabled="importingExternal" class="rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 px-6">
             {{ importingExternal ? '导入中...' : '开始导入' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showDestroyCodesDialog">
+      <DialogContent class="sm:max-w-[560px] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-3xl">
+        <DialogHeader class="px-8 pt-8 pb-4">
+          <DialogTitle class="text-2xl font-bold text-gray-900">按卡密批量销毁</DialogTitle>
+        </DialogHeader>
+
+        <div class="px-8 pb-8 space-y-6">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">卡密列表</Label>
+              <input
+                ref="destroyCodesFileInput"
+                type="file"
+                accept=".txt,text/plain"
+                class="hidden"
+                @change="handleDestroyCodesFileChange"
+              />
+              <Button type="button" variant="outline" class="h-9 rounded-xl border-gray-200 bg-white" @click="triggerDestroyCodesFilePicker">
+                <Upload class="mr-2 h-4 w-4" />
+                导入 TXT
+              </Button>
+            </div>
+            <textarea
+              v-model="destroyCodesText"
+              rows="10"
+              placeholder="每行一个卡密，支持直接粘贴或导入 txt"
+              class="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-mono text-gray-900 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            ></textarea>
+            <p class="text-xs text-gray-400">每行算一个输入。支持普通兑换码和外部卡密，匹配到的卡密会直接销毁。</p>
+          </div>
+        </div>
+
+        <DialogFooter class="px-8 pb-8 pt-0">
+          <Button variant="ghost" @click="closeDestroyCodesDialog" class="rounded-xl text-gray-500">取消</Button>
+          <Button @click="handleBatchDeleteByCodes" :disabled="destroyingByCodes" class="rounded-xl bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 px-6">
+            {{ destroyingByCodes ? '销毁中...' : '确认销毁' }}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1890,7 +1993,7 @@ const handleInviteSubmit = async () => {
                    class="font-medium"
                    :class="!currentRedeemIsExternal && isCodeAccountBanned(redeemTargetCode) ? 'text-red-600' : 'text-blue-900'"
                  >
-                    {{ currentRedeemIsExternal ? (getSupplierSummary(redeemTargetCode) || '未指定') : (redeemTargetCode.accountEmail || '未指定') }}
+                   {{ currentRedeemIsExternal ? (getSupplierSummary(redeemTargetCode) || '未指定') : (redeemTargetCode.accountEmail || '未指定') }}
                  </span>
               </div>
            </div>

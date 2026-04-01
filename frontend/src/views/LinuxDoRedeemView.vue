@@ -137,7 +137,7 @@
                     <div class="bg-white/50 dark:bg-black/20 rounded-xl p-3 border border-black/5 dark:border-white/10 space-y-1.5">
                       <p class="flex justify-between">
                         <span class="text-[#86868b]">当前成员数</span>
-                        <span class="font-medium tabular-nums">{{ successInfo.userCount }} / {{ successInfo.maxCapacity ?? 5 }}</span>
+                        <span class="font-medium tabular-nums">{{ successInfo.userCount }} / 5</span>
                       </p>
                       <p v-if="successInfo.inviteStatus" class="flex justify-between items-center">
                         <span class="text-[#86868b]">邀请状态</span>

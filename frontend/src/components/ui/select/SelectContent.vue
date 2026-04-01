@@ -1,23 +1,16 @@
 <script setup lang="ts">
-import { SelectContent, type SelectContentEmits, SelectPortal, SelectViewport, useForwardPropsEmits } from 'radix-vue'
-import { computed, useAttrs } from 'vue'
+import { SelectContent, type SelectContentEmits, type SelectContentProps, SelectPortal, SelectViewport, useForwardPropsEmits } from 'radix-vue'
+import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
-const props = withDefaults(defineProps<{
-  class?: string
-  position?: 'popper' | 'item-aligned'
-}>(), {
+const props = withDefaults(defineProps<SelectContentProps & { class?: string }>(), {
   position: 'popper',
 })
 const emits = defineEmits<SelectContentEmits>()
-const attrs = useAttrs()
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props
-  return {
-    ...attrs,
-    ...delegated,
-  }
+  return delegated
 })
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)

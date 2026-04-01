@@ -122,8 +122,7 @@ const formData = ref<CreateGptAccountDto>({
   email: '',
   token: '',
   refreshToken: '',
-  userCount: 0,
-  maxCapacity: 5,
+  userCount: 1,
   isBanned: false,
   isOpen: true,
   chatgptAccountId: '',
@@ -372,7 +371,7 @@ const handleExchangeOpenaiCode = async () => {
       }
     }
 
-    showSuccessToast('已获取并填入 token 信息')
+    showSuccessToast('已获取并填入账号信息')
   } catch (err: any) {
     if (currentNonce !== openaiOAuthFlowNonce) return
     openaiOAuthError.value = resolveRequestError(err, '交换授权码失败')
@@ -949,7 +948,6 @@ const openEditDialog = (account: GptAccount) => {
 	    token: account.token,
 	    refreshToken: account.refreshToken || '',
 	    userCount: account.userCount,
-      maxCapacity: account.maxCapacity ?? 5,
 	    isBanned: Boolean(account.isBanned),
 	    isOpen: Boolean(account.isOpen),
 	    chatgptAccountId: account.chatgptAccountId || '',
@@ -962,7 +960,7 @@ const openEditDialog = (account: GptAccount) => {
 	const closeDialog = () => {
 	  showDialog.value = false
 	  editingAccount.value = null
-	  formData.value = { email: '', token: '', refreshToken: '', userCount: 0, maxCapacity: 5, isBanned: false, isOpen: true, chatgptAccountId: '', expireAt: '', remark: '' }
+  formData.value = { email: '', token: '', refreshToken: '', userCount: 1, isBanned: false, isOpen: true, chatgptAccountId: '', expireAt: '', remark: '' }
 	  checkedChatgptAccounts.value = []
 	  checkAccessTokenError.value = ''
 	  checkingAccessToken.value = false
@@ -977,7 +975,7 @@ const handleSubmit = async () => {
       email: formData.value.email.trim(),
       token: formData.value.token.trim(),
       refreshToken: formData.value.refreshToken?.trim() || '',
-      maxCapacity: Math.max(1, Number(formData.value.maxCapacity || 5)),
+      userCount: Math.max(1, Number(formData.value.userCount || 1)),
       chatgptAccountId: formData.value.chatgptAccountId?.trim() || '',
       expireAt: fromDatetimeLocal(formData.value.expireAt?.trim() || ''),
       remark: formData.value.remark?.trim() || '',
@@ -1451,7 +1449,7 @@ const handleInviteSubmit = async () => {
 	                </td>
                 <td class="px-6 py-5 text-center">
                   <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-100">
-                    {{ account.userCount }} / {{ account.maxCapacity ?? 5 }}
+                    {{ account.userCount }} 人
                   </span>
                 </td>
 	                <td class="px-6 py-5 text-center">
@@ -1558,7 +1556,7 @@ const handleInviteSubmit = async () => {
                 </span>
                 <div class="flex flex-wrap justify-end gap-2">
                   <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-100">
-                    {{ account.userCount }} / {{ account.maxCapacity ?? 5 }}
+                    {{ account.userCount }} 人
                   </span>
                   <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-600 border border-purple-100">
                     {{ account.inviteCount ?? 0 }} 待
@@ -1690,19 +1688,6 @@ const handleInviteSubmit = async () => {
                   placeholder="可选，记录这个账号的说明"
                   class="flex w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-all placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 ></textarea>
-              </div>
-
-              <div class="space-y-2">
-                <Label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">最大车位容量</Label>
-                <Input
-                  v-model.number="formData.maxCapacity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="默认 5"
-                  class="h-11 bg-gray-50 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
-                />
-                <p class="text-[12px] text-gray-400">用于控制该母号可分配的最大车位数，默认 5。</p>
               </div>
 
               <div class="space-y-2">

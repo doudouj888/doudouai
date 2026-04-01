@@ -87,6 +87,37 @@ router.get('/overview', async (req, res) => {
 
     const codesTotal = scalar('SELECT COUNT(*) FROM redemption_codes')
     const codesUnused = scalar(`SELECT COUNT(*) FROM redemption_codes WHERE COALESCE(is_redeemed, 0) = 0`)
+    const invitesToday = scalar(
+      `
+        SELECT COUNT(*)
+        FROM redemption_codes
+        WHERE COALESCE(is_redeemed, 0) = 1
+          AND DATE(redeemed_at) = DATE('now', 'localtime')
+      `
+    )
+    const invitesYesterday = scalar(
+      `
+        SELECT COUNT(*)
+        FROM redemption_codes
+        WHERE COALESCE(is_redeemed, 0) = 1
+          AND DATE(redeemed_at) = DATE('now', 'localtime', '-1 day')
+      `
+    )
+    const invitesMonth = scalar(
+      `
+        SELECT COUNT(*)
+        FROM redemption_codes
+        WHERE COALESCE(is_redeemed, 0) = 1
+          AND STRFTIME('%Y-%m', DATETIME(redeemed_at)) = STRFTIME('%Y-%m', 'now', 'localtime')
+      `
+    )
+    const invitesTotal = scalar(
+      `
+        SELECT COUNT(*)
+        FROM redemption_codes
+        WHERE COALESCE(is_redeemed, 0) = 1
+      `
+    )
 
     const xhsCodesTodayTotal = scalar(
       `
@@ -324,6 +355,12 @@ router.get('/overview', async (req, res) => {
 
     res.json({
       range: { from, to },
+      invites: {
+        today: invitesToday,
+        yesterday: invitesYesterday,
+        month: invitesMonth,
+        total: invitesTotal,
+      },
       users: {
         total: usersTotal,
         created: usersNew,

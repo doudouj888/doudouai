@@ -1,13 +1,13 @@
 import { computed, ref, unref, type Ref } from 'vue'
 import { redemptionCodeService } from '@/services/api'
 import { EMAIL_REGEX } from '@/lib/validation'
+import { formatPartialRedemptionCode, isValidRedemptionCode, normalizeRedemptionCode } from '@/lib/redemption-code'
 
 export interface RedeemSuccessInfo {
   message?: string
   email?: string | null
   accountEmail?: string | null
   userCount?: number | null
-  maxCapacity?: number | null
   inviteStatus?: string
   fulfillmentMode?: string | null
   supplierName?: string | null
@@ -46,8 +46,7 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
     if (rawCodeMode.value) {
       return formData.value.code.trim().length > 0
     }
-    const codeRegex = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
-    return codeRegex.test(formData.value.code)
+    return isValidRedemptionCode(formData.value.code)
   })
 
   const handleCodeInput = (value: string | Event) => {
@@ -63,19 +62,7 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
       return
     }
 
-    let formatted = val.toUpperCase().replace(/[^A-Z0-9]/g, '')
-
-    if (formatted.length > 4 && formatted.length <= 8) {
-      formatted = `${formatted.slice(0, 4)}-${formatted.slice(4)}`
-    } else if (formatted.length > 8) {
-      formatted = `${formatted.slice(0, 4)}-${formatted.slice(4, 8)}-${formatted.slice(8, 12)}`
-    }
-
-    if (formatted.length > 14) {
-      formatted = formatted.slice(0, 14)
-    }
-
-    formData.value.code = formatted
+    formData.value.code = formatPartialRedemptionCode(val)
   }
 
   const handleRedeem = async (options?: { extraData?: Record<string, any>; linuxDoSessionToken?: string }) => {
@@ -107,7 +94,7 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
     if (!isValidCode.value) {
       errorMessage.value = rawCodeMode.value
         ? '请输入有效卡密'
-        : '兑换码格式不正确，应为 XXXX-XXXX-XXXX 格式'
+        : '兑换码格式不正确，应为 XXXX-XXXX-XXXX'
       return
     }
 
@@ -116,7 +103,7 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
     try {
       const payload: Record<string, any> = {
         email: normalizedEmail,
-        code: formData.value.code.trim(),
+        code: rawCodeMode.value ? formData.value.code.trim() : normalizeRedemptionCode(formData.value.code),
         channel: redeemChannel.value,
       }
 
@@ -143,7 +130,6 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
         email: responseData.email || normalizedEmail,
         accountEmail: responseData.accountEmail || null,
         userCount: Number.isFinite(resolvedUserCount) ? resolvedUserCount : null,
-        maxCapacity: Number.isFinite(Number(responseData.maxCapacity)) ? Number(responseData.maxCapacity) : null,
         inviteStatus: responseData.inviteStatus,
         fulfillmentMode: responseData.fulfillmentMode || null,
         supplierName: responseData.supplierName || null,
@@ -161,11 +147,11 @@ export const useRedeemForm = (channel: MaybeRef<string> = 'common', options: Use
       } else if (error.response?.status === 404) {
         errorMessage.value = rawCodeMode.value ? '卡密不存在或已被使用' : '兑换码不存在或已被使用'
       } else if (error.response?.status === 400) {
-        errorMessage.value = '请求参数错误，请检查输入'
+        errorMessage.value = '请求参数错误，请检查输入内容'
       } else if (error.response?.status === 503) {
-        errorMessage.value = rawCodeMode.value ? '兑换服务暂不可用，请稍后重试' : '暂无可用账号，请稍后再试'
+        errorMessage.value = rawCodeMode.value ? '兑换服务暂不可用，请稍后重试' : '当前暂无可用账号，请稍后再试'
       } else {
-        errorMessage.value = '网络错误，请稍后重试'
+        errorMessage.value = '网络异常，请稍后重试'
       }
     } finally {
       isLoading.value = false

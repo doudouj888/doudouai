@@ -98,7 +98,7 @@
                     </p>
                     <p v-if="!successIsExternal && successInfo.userCount !== null && successInfo.userCount !== undefined" class="flex justify-between">
                       <span class="text-[#86868b]">当前成员数</span>
-                      <span class="font-medium tabular-nums">{{ successInfo.userCount }} / {{ successInfo.maxCapacity ?? 5 }}</span>
+                      <span class="font-medium tabular-nums">{{ successInfo.userCount }} / 5</span>
                     </p>
                     <p v-if="!successIsExternal && successInfo.inviteStatus" class="flex justify-between items-center">
                       <span class="text-[#86868b]">邀请状态</span>
